@@ -1,10 +1,12 @@
 package ch03
 
+import scala.collection.immutable.Set.empty
+
 //抽象構文木
 sealed trait _Syntax
 sealed trait Term extends _Syntax
 sealed trait Value extends _Syntax
-sealed trait NumericValue extends Value with _Syntax
+sealed trait NumericValue extends Value
 
 final case object True extends Term with Value
 final case object False extends Term with Value
@@ -13,6 +15,15 @@ final object Zero extends Term with NumericValue
 final case class Succ(t: Term) extends Term
 final case class Pred(t: Term) extends Term
 final case class IsZero(t: Term) extends Term
+
+//inference
+sealed trait I_True[T <: Term]
+sealed trait I_False[T <: Term]
+sealed trait I_Zero[T <: Term]
+sealed abstract class I_Succ[T <: Term](t: T)
+final abstract class I_Pred[T <: Term](t: T)
+final abstract class I_IsZero[T <: Term](t: T)
+final abstract class I_IfElse[T1, T2, T3 <: Term](t1: T1, t2: T2, t3: T3)
 
 //評価器
 object OneStepEval {
