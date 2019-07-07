@@ -13,3 +13,17 @@ final object Zero extends Term with NumericValue
 final case class Succ(t: Term) extends Term
 final case class Pred(t: Term) extends Term
 final case class IsZero(t: Term) extends Term
+
+//評価器
+object OneStepEval {
+  val oneStepEval: Term => Term = t =>
+    t match {
+      case Succ(t)                       => Succ(oneStepEval(t))
+      case Pred(Zero)                    => Zero
+      case Pred(Succ(nv: NumericValue))  => nv
+      case Pred(t)                       => Pred(oneStepEval(t))
+      case IsZero(Zero)                  => True
+      case IsZero(Succ(_: NumericValue)) => False
+      case IsZero(t)                     => IsZero(oneStepEval(t))
+  }
+}
