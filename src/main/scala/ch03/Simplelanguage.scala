@@ -25,6 +25,29 @@ final abstract class I_Pred[T <: Term](t: T)
 final abstract class I_IsZero[T <: Term](t: T)
 final abstract class I_IfElse[T1, T2, T3 <: Term](t1: T1, t2: T2, t3: T3)
 
+//set
+object SetTheory {
+  private type S = Set[Term]
+
+  val S0: S = empty
+
+  val SuccS: S => S = s => {
+    Set[Term](True, False, Zero) | {
+      for {
+        t1: Term <- s
+        expr1 <- Set[Term](Succ(t1), Pred(t1), IsZero(t1))
+      } yield expr1
+    } | {
+      for {
+        t1: Term <- s
+        t2: Term <- s
+        t3: Term <- s
+        expr2 <- Set[Term](IfElse(t1, t2, t3))
+      } yield expr2
+    }
+  }
+}
+
 //評価器
 object OneStepEval {
   val oneStepEval: Term => Term = t =>
