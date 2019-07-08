@@ -23,8 +23,9 @@ sealed trait I_Zero[T <: Term]
 sealed abstract class I_Succ[T <: Term](t: T)
 final abstract class I_Pred[T <: Term](t: T)
 final abstract class I_IsZero[T <: Term](t: T)
-final abstract class I_IfElse[T1, T2, T3 <: Term](t1: T1, t2: T2, t3: T3)
-
+final abstract class I_IfElse[T1 <: Term, T2 <: Term, T3 <: Term](t1: T1,
+                                                                  t2: T2,
+                                                                  t3: T3)
 //set
 object SetTheory {
   private type S = Set[Term]
@@ -50,14 +51,14 @@ object SetTheory {
 
 //評価器
 object OneStepEval {
-  val oneStepEval: Term => Term = t =>
-    t match {
-      case Succ(t)                       => Succ(oneStepEval(t))
-      case Pred(Zero)                    => Zero
-      case Pred(Succ(nv: NumericValue))  => nv
-      case Pred(t)                       => Pred(oneStepEval(t))
-      case IsZero(Zero)                  => True
-      case IsZero(Succ(_: NumericValue)) => False
-      case IsZero(t)                     => IsZero(oneStepEval(t))
+  val oneStepEval: Term => Term = {
+    case Succ(t) => Succ(oneStepEval(t))
+    case Pred(Zero) => Zero
+    case Pred(Succ(nv: NumericValue)) => nv
+    case Pred(t) => Pred(oneStepEval(t))
+    case IsZero(Zero) => True
+    case IsZero(Succ(_: NumericValue)) => False
+    case IsZero(t) => IsZero(oneStepEval(t))
+    case _ => throw new RuntimeException
   }
 }
