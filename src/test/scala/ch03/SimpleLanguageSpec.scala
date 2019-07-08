@@ -7,6 +7,42 @@ import scala.collection.Set.empty
 
 class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
 
+  "Interence" should "【定義3.2.1 3.2.2】" in {
+    //TODO: Tの定義とは？
+    val T1 = StreamS(1)
+    val T2 = StreamS(2)
+
+    assert(T1 contains True)
+    assert(T1 contains False)
+    assert(T1 contains Zero)
+
+    val f1 = for {
+      t1 <- T1
+      expr <- Set[Term](Succ(t1))
+    } yield expr
+    assert(f1 subsetOf T2)
+
+    val f2 = for {
+      t1 <- T1
+      expr <- Set[Term](Pred(t1))
+    } yield expr
+    assert(f2 subsetOf T2)
+
+    val f3 = for {
+      t1 <- T1
+      expr <- Set[Term](IsZero(t1))
+    } yield expr
+    assert(f3 subsetOf T2)
+
+    val g1 = for {
+      t1 <- T1
+      t2 <- T1
+      t3 <- T1
+      expr <- Set[Term](IfElse(t1, t2, t3))
+    } yield expr
+    assert(g1 subsetOf T2)
+  }
+
   "SuccS関数" should "【定義3.2.3】" in {
     assert(StreamS(0) === empty)
     assert(StreamS(1) === Set[Term](True, False, Zero))
