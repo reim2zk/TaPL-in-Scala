@@ -8,10 +8,10 @@ import scala.collection.Set.empty
 class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
 
   "SuccS関数" should "【定義3.2.3】" in {
-    assert(S0 === empty)
-    assert(SuccS(S0) === Set[Term](True, False, Zero))
+    assert(StreamS(0) === empty)
+    assert(StreamS(1) === Set[Term](True, False, Zero))
     assert(
-      SuccS(SuccS(S0)) ===
+      StreamS(2) ===
         Set[Term](
           IfElse(Zero, True, False),
           IfElse(Zero, Zero, True),
@@ -56,6 +56,6 @@ class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
   }
 
   "SuccS関数" should "【演習3.2.4】 S3の要素数" in {
-    assert(SuccS(SuccS(SuccS(S0))).size === 59439)
+    assert(StreamS(3).size === 59439)
   }
 }
