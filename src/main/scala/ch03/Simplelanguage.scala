@@ -3,9 +3,9 @@ package ch03
 import scala.collection.immutable.Set.empty
 
 //抽象構文木
-sealed trait _Syntax
-sealed trait Term extends _Syntax
-sealed trait Value extends _Syntax
+sealed trait Syntax
+sealed trait Term extends Syntax
+sealed trait Value extends Syntax
 sealed trait NumericValue extends Value
 
 final case object True extends Term with Value
@@ -17,15 +17,24 @@ final case class Pred(t: Term) extends Term
 final case class IsZero(t: Term) extends Term
 
 //inference
-sealed trait I_True[T <: Term]
-sealed trait I_False[T <: Term]
-sealed trait I_Zero[T <: Term]
-sealed abstract class I_Succ[T <: Term](t: T)
-final abstract class I_Pred[T <: Term](t: T)
-final abstract class I_IsZero[T <: Term](t: T)
-final abstract class I_IfElse[T1 <: Term, T2 <: Term, T3 <: Term](t1: T1,
-                                                                  t2: T2,
-                                                                  t3: T3)
+//sealed trait I_True[T <: Term]
+//sealed trait I_False[T <: Term]
+//sealed trait I_Zero[T <: Term]
+//sealed abstract class I_Succ[T <: Term](t: T)
+//final abstract class I_Pred[T <: Term](t: T)
+//final abstract class I_IsZero[T <: Term](t: T)
+//final abstract class I_IfElse[T1 <: Term, T2 <: Term, T3 <: Term](t1: T1,
+//                                                                  t2: T2,
+//                                                                  t3: T3)
+
+
+//Inductive definition
+object InductiveDefinition {
+  private val T = Set[Term](True, False, Zero)
+
+  Set[Term](True, False, Zero) subsetOf T
+}
+
 //set
 object SetTheory {
   private type S = Set[Term]
