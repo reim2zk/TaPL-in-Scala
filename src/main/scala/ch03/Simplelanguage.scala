@@ -47,7 +47,7 @@ object SetTheory {
 
 //評価器
 object OneStepEval {
-  def apply(t:Term) : Term = t match{
+  def apply(t: Term): Term = t match {
     case Succ(t)                       => Succ(OneStepEval(t))
     case Pred(Zero)                    => Zero
     case Pred(Succ(nv: NumericValue))  => nv
@@ -69,5 +69,16 @@ object Consts {
     case IsZero(t1)         => Consts(t1)
     case IfElse(t1, t2, t3) => Consts(t1) | Consts(t2) | Consts(t3)
   }
+}
 
+object Size {
+  def apply(t: Term): Int = t match {
+    case True               => 1
+    case False              => 1
+    case Zero               => 1
+    case Succ(t1)           => Size(t1) + 1
+    case Pred(t1)           => Size(t1) + 1
+    case IsZero(t1)         => Size(t1) + 1
+    case IfElse(t1, t2, t3) => Size(t1) + Size(t2) + Size(t3) + 1
+  }
 }

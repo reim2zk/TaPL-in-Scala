@@ -122,7 +122,39 @@ class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
       t2 <- T1
       t3 <- T1
       res = assert(
-        Consts(IfElse(t1, t2, t3)) === (Consts(t1) union Consts(t2) union Consts(t3)))
+        Consts(IfElse(t1, t2, t3)) === (Consts(t1) union Consts(t2) union Consts(
+          t3)))
+    } res
+  }
+
+  "Size関数" should "【定義3.3.2】" in {
+    val T1: Set[Term] = StreamS(1)
+
+    assert(Size(True) === 1)
+    assert(Size(False) === 1)
+    assert(Size(Zero) === 1)
+
+    for {
+      t1 <- T1
+      res = assert(Size(Succ(t1)) === Size(t1) + 1)
+    } yield res
+
+    for {
+      t1 <- T1
+      res = assert(Size(Pred(t1)) === Size(t1) + 1)
+    } yield res
+
+    for {
+      t1 <- T1
+      res = assert(Size(IsZero(t1)) === Size(t1) + 1)
+    } yield res
+
+    for {
+      t1 <- T1
+      t2 <- T1
+      t3 <- T1
+      res = assert(
+        Size(IfElse(t1, t2, t3)) === (Size(t1) + Size(t2) + Size(t3) + 1))
     } res
   }
 }
