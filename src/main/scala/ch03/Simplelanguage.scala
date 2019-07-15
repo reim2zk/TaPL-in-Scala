@@ -16,8 +16,6 @@ final case class Succ(t: Term) extends Term
 final case class Pred(t: Term) extends Term
 final case class IsZero(t: Term) extends Term
 
-
-
 //set
 object SetTheory {
   private type S = Set[Term]
@@ -61,11 +59,19 @@ object OneStepEval {
   }
 }
 
-final case class Consts(t: Term){
-  def apply(t: Term): Set[Term] =  Set[Term](t)
-}
+//final case class Consts(t: Term){
+//  def apply(t: Term): Set[Term] =  Set[Term](t)
+//}
 
-object Const{
-  Const(True)
+object Consts {
+  def apply(t: Term): Set[Term] = t match {
+    case True               => Set[Term](True)
+    case False              => Set[Term](False)
+    case Zero               => Set[Term](Zero)
+    case Succ(t1)           => Consts(t1)
+    case Pred(t1)           => Consts(t1)
+    case IsZero(t1)         => Consts(t1)
+    case IfElse(t1, t2, t3) => Consts(t1) | Consts(t2) | Consts(t3)
+  }
 
 }

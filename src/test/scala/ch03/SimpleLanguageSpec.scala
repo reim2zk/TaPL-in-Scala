@@ -94,4 +94,35 @@ class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
   "SuccS関数" should "【演習3.2.4】 S3の要素数" in {
     assert(StreamS(3).size === 59439)
   }
+  "Const関数" should "【定義3.3.1】" in {
+    val T1: Set[Term] = StreamS(1)
+    val T2: Set[Term] = StreamS(2)
+
+    assert(Consts(True) === Set[Term](True))
+    assert(Consts(False) === Set[Term](False))
+    assert(Consts(Zero) === Set[Term](Zero))
+
+    for {
+      t1 <- T1
+      res = assert(Consts(Succ(t1)) === Consts(t1))
+    } yield res
+
+    for {
+      t1 <- T1
+      res = assert(Consts(Pred(t1)) === Consts(t1))
+    } yield res
+
+    for {
+      t1 <- T1
+      res = assert(Consts(IsZero(t1)) === Consts(t1))
+    } yield res
+
+    for {
+      t1 <- T1
+      t2 <- T1
+      t3 <- T1
+      res = assert(
+        Consts(IfElse(t1, t2, t3)) === (Consts(t1) union Consts(t2) union Consts(t3)))
+    } res
+  }
 }
