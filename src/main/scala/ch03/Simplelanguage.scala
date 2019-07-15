@@ -6,15 +6,18 @@ import scala.collection.immutable.Set.empty
 sealed trait Syntax
 sealed trait Term extends Syntax
 sealed trait Value extends Syntax
-sealed trait NumericValue extends Value
+sealed trait BadNat
+sealed trait BadBool
+sealed trait NumericValue extends Value with BadBool
+sealed trait Wrong extends BadBool with BadNat
 
-final case object True extends Term with Value
-final case object False extends Term with Value
-final case class IfElse(t1: Term, t2: Term, t3: Term) extends Term
-final object Zero extends Term with NumericValue
+final case object True extends Term with Value with BadNat
+final case object False extends Term with Value with BadNat
+final case object Zero extends Term with NumericValue
 final case class Succ(t: Term) extends Term
 final case class Pred(t: Term) extends Term
 final case class IsZero(t: Term) extends Term
+final case class IfElse(t1: Term, t2: Term, t3: Term) extends Term
 
 //set
 object SetTheory {
@@ -48,10 +51,13 @@ object SetTheory {
 //評価器
 object OneStepEval {
   def apply(t: Term): Term = t match {
+    case Succ(_: BadNat)  => Wrong
     case Succ(t)                       => Succ(OneStepEval(t))
+    case Pred(_: BadBool) => Wrong
     case Pred(Zero)                    => Zero
     case Pred(Succ(nv: NumericValue))  => nv
     case Pred(t)                       => Pred(OneStepEval(t))
+    case IsZero(_: BadBool) => Wrong
     case IsZero(Zero)                  => True
     case IsZero(Succ(_: NumericValue)) => False
     case IsZero(t)                     => IsZero(OneStepEval(t))
@@ -94,3 +100,4 @@ object Depth {
     case IfElse(t1, t2, t3) => List(Depth(t1), Depth(t2), Depth(t3)).max + 1
   }
 }
+
