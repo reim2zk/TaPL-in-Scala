@@ -82,3 +82,15 @@ object Size {
     case IfElse(t1, t2, t3) => Size(t1) + Size(t2) + Size(t3) + 1
   }
 }
+
+object Depth {
+  def apply(t: Term): Int = t match {
+    case True               => 1
+    case False              => 1
+    case Zero               => 1
+    case Succ(t1)           => Depth(t1) + 1
+    case Pred(t1)           => Depth(t1) + 1
+    case IsZero(t1)         => Depth(t1) + 1
+    case IfElse(t1, t2, t3) => List(Depth(t1), Depth(t2), Depth(t3)).max + 1
+  }
+}

@@ -136,17 +136,17 @@ class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
 
     for {
       t1 <- T1
-      res = assert(Size(Succ(t1)) === Size(t1) + 1)
+      res = assert(Depth(Succ(t1)) === Size(t1) + 1)
     } yield res
 
     for {
       t1 <- T1
-      res = assert(Size(Pred(t1)) === Size(t1) + 1)
+      res = assert(Depth(Pred(t1)) === Depth(t1) + 1)
     } yield res
 
     for {
       t1 <- T1
-      res = assert(Size(IsZero(t1)) === Size(t1) + 1)
+      res = assert(Depth(IsZero(t1)) === Depth(t1) + 1)
     } yield res
 
     for {
@@ -155,6 +155,38 @@ class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
       t3 <- T1
       res = assert(
         Size(IfElse(t1, t2, t3)) === (Size(t1) + Size(t2) + Size(t3) + 1))
+    } res
+  }
+
+  "Depth関数" should "【定義3.3.2】" in {
+    val T1: Set[Term] = StreamS(1)
+
+    assert(Depth(True) === 1)
+    assert(Depth(False) === 1)
+    assert(Depth(Zero) === 1)
+
+    for {
+      t1 <- T1
+      res = assert(Depth(Succ(t1)) === Depth(t1) + 1)
+    } yield res
+
+    for {
+      t1 <- T1
+      res = assert(Depth(Pred(t1)) === Depth(t1) + 1)
+    } yield res
+
+    for {
+      t1 <- T1
+      res = assert(Depth(IsZero(t1)) === Depth(t1) + 1)
+    } yield res
+
+    for {
+      t1 <- T1
+      t2 <- T1
+      t3 <- T1
+      res = assert(Depth(IfElse(t1, t2, t3)) === List(Depth(t1),
+                                                      Depth(t2),
+                                                      Depth(t3)).max + 1)
     } res
   }
 }
