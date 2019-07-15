@@ -47,21 +47,17 @@ object SetTheory {
 
 //評価器
 object OneStepEval {
-  val oneStepEval: Term => Term = {
-    case Succ(t)                       => Succ(oneStepEval(t))
+  def apply(t:Term) : Term = t match{
+    case Succ(t)                       => Succ(OneStepEval(t))
     case Pred(Zero)                    => Zero
     case Pred(Succ(nv: NumericValue))  => nv
-    case Pred(t)                       => Pred(oneStepEval(t))
+    case Pred(t)                       => Pred(OneStepEval(t))
     case IsZero(Zero)                  => True
     case IsZero(Succ(_: NumericValue)) => False
-    case IsZero(t)                     => IsZero(oneStepEval(t))
+    case IsZero(t)                     => IsZero(OneStepEval(t))
     case _                             => throw new RuntimeException
   }
 }
-
-//final case class Consts(t: Term){
-//  def apply(t: Term): Set[Term] =  Set[Term](t)
-//}
 
 object Consts {
   def apply(t: Term): Set[Term] = t match {
