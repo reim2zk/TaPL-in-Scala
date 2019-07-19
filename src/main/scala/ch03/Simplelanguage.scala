@@ -9,11 +9,11 @@ sealed trait Value extends Syntax
 sealed trait BadNat
 sealed trait BadBool
 sealed trait NumericValue extends Value with BadBool
-sealed trait Wrong extends BadBool with BadNat
+final case object Wrong extends BadBool with BadNat
 
 final case object True extends Term with Value with BadNat
 final case object False extends Term with Value with BadNat
-final case object Zero extends Term with NumericValue
+final case object Zero extends Term with NumericValue with BadBool
 final case class Succ(t: Term) extends Term
 final case class Pred(t: Term) extends Term
 final case class IsZero(t: Term) extends Term
@@ -51,16 +51,19 @@ object SetTheory {
 //評価器
 object OneStepEval {
   def apply(t: Term): Term = t match {
-    case Succ(_: BadNat)  => Wrong
-    case Succ(t)                       => Succ(OneStepEval(t))
-    case Pred(_: BadBool) => Wrong
-    case Pred(Zero)                    => Zero
-    case Pred(Succ(nv: NumericValue))  => nv
-    case Pred(t)                       => Pred(OneStepEval(t))
-    case IsZero(_: BadBool) => Wrong
+//    case Succ(_: BadNat)  => Wrong
+    case Succ(t) => Succ(OneStepEval(t))
+//    case Pred(_: BadBool) => Wrong
+    case Pred(Zero)                   => Zero
+    case Pred(Succ(nv: NumericValue)) => nv
+    case Pred(t)                      => Pred(OneStepEval(t))
+//    case IsZero(_: BadBool) => Wrong
     case IsZero(Zero)                  => True
     case IsZero(Succ(_: NumericValue)) => False
     case IsZero(t)                     => IsZero(OneStepEval(t))
+    case IfElse(True, t2, _)           => t2
+    case IfElse(False, _, t3)          => t3
+    case IfElse(t1, t2, t3)            => IfElse(OneStepEval(t1), t2, t3)
     case _                             => throw new RuntimeException
   }
 }
@@ -100,4 +103,3 @@ object Depth {
     case IfElse(t1, t2, t3) => List(Depth(t1), Depth(t2), Depth(t3)).max + 1
   }
 }
-
