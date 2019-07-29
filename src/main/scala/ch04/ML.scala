@@ -55,8 +55,8 @@ object isVal {
         try {
           eval(evalOne(t))
         } catch {
-          //TODO:最後の項を表示する
-          case e: Exception => throw e
+//          case e: Exception => throw e
+          case _: NoRuleAppliesException => t
         }
       }
     }
