@@ -10,60 +10,59 @@ trait BadNat
 trait BadBool
 trait NumericValue extends Value with BadBool
 
-trait Zero extends Term with NumericValue with BadBool
-trait True[T <: Term] extends Term with Value with BadNat
-trait False[T <: Term] extends Term with Value with BadNat
-
-trait Succ[T <: Term] extends Term
-trait Pred[T <: Term] extends Term
-trait IsZero[T <: Term] extends Term
-trait IfElse[T1 <: Term, T2 <: Term, T3 <: Term] extends Term
+//trait Zero extends Term with NumericValue with BadBool
+//trait True[T <: Term] extends Term with Value with BadNat
+//trait False[T <: Term] extends Term with Value with BadNat
+//
+//trait Succ[T <: Term] extends Term
+//trait Pred[T <: Term] extends Term
+//trait IsZero[T <: Term] extends Term
+//trait IfElse[T1 <: Term, T2 <: Term, T3 <: Term] extends Term
 
 final case object Wrong extends BadBool with BadNat
 
-//final case object True extends Term with NumericValue with BadBool
-//final case object False extends Term with Value with BadNat
-//final case object Zero extends Term with Value with BadNat
+final case object True extends Term with NumericValue with BadBool
+final case object False extends Term with Value with BadNat
+final case object Zero extends Term with Value with BadNat
 
-//final case class Succ(t: Term) extends Term
-//final case class Pred(t: Term) extends Term
-//final case class IsZero(t: Term) extends Term
-//final case class IfElse(t1: Term, t2: Term, t3: Term) extends Term
+final case class Succ(t: Term) extends Term with NumericValue
+final case class Pred(t: Term) extends Term
+final case class IsZero(t: Term) extends Term
+final case class IfElse(t1: Term, t2: Term, t3: Term) extends Term
 
-trait ToInt[T <: Term] { def apply(): Int }
-object ToInt {
-  def apply[T <: Term](implicit toInt: ToInt[T]): Int = toInt()
-}
+//trait ToInt[T <: Term] { def apply(): Int }
+//object ToInt {
+//  def apply[T <: Term](implicit toInt: ToInt[T]): Int = toInt()
+//}
+//
+//trait ToBool[T <: Term] { def apply(): Boolean }
+//object ToBool {
+//  def apply[T <: Term](implicit toBool: ToBool[T]): Boolean = toBool()
+//}
 
-trait ToBool[T <: Term] { def apply(): Boolean }
-object ToBool {
-  def apply[T <: Term](implicit toBool: ToBool[T]): Boolean = toBool()
-}
-
-object Calculater {
-  implicit def zero: ToInt[Zero] = () => 0
-
-  implicit def succ[T <: Term](implicit toInt: ToInt[T]): ToInt[Succ[T]] =
-    () => toInt() + 1
-
-  //TODO: 0未満にならないようにする必要がある？
-  implicit def pred[T <: Term](implicit toInt: ToInt[T]): ToInt[Pred[T]] =
-    () => toInt() + 1
-
-  implicit def isZero[T <: Term](implicit toInt: ToInt[T]): ToBool[IsZero[T]] =
-    () =>
-      toInt() match {
-        case 0 => true
-        case _ => false
-    }
-  implicit def ifElse[T1 <: Term, T2 <: Term, T3 <: Term](implicit toBool: ToBool[T1]): Term = {
-    () => toBool() match {
-      case true => T2
-      case false => T3
-    }
-  }
-
-}
+//object Calculater {
+//  implicit def zero: ToInt[Zero] = () => 0
+//
+//  implicit def succ[T <: Term](implicit toInt: ToInt[T]): ToInt[Succ[T]] =
+//    () => toInt() + 1
+//
+//  //TODO: 0未満にならないようにする必要がある？
+//  implicit def pred[T <: Term](implicit toInt: ToInt[T]): ToInt[Pred[T]] =
+//    () => toInt() + 1
+//
+//  implicit def isZero[T <: Term](implicit toInt: ToInt[T]): ToBool[IsZero[T]] =
+//    () =>
+//      toInt() match {
+//        case 0 => true
+//        case _ => false
+//    }
+//  implicit def ifElse[T1 <: Term, T2 <: Term, T3 <: Term](implicit toBool: ToBool[T1]): Term = {
+//    () => toBool() match {
+//      case true => T2
+//      case false => T3
+//    }
+//  }
+//}
 
 //set
 object SetTheory {
@@ -98,18 +97,22 @@ object SetTheory {
 object OneStepEval {
   def apply(t: Term): Term = t match {
 //    case Succ(_: BadNat)  => Wrong
-    case Succ(t) => Succ(OneStepEval(t))
+    case Succ(_: BadNat) => throw new RuntimeException("E-SUCC-WRONG")
+    case Succ(t)         => Succ(OneStepEval(t))
 //    case Pred(_: BadBool) => Wrong
+    case Pred(_: BadBool)             => throw new RuntimeException("E-PRED-WRONG")
     case Pred(Zero)                   => Zero
     case Pred(Succ(nv: NumericValue)) => nv
     case Pred(t)                      => Pred(OneStepEval(t))
 //    case IsZero(_: BadBool) => Wrong
+    case IsZero(_: BadBool)            => throw new RuntimeException("E-IsZERO-WRONG")
     case IsZero(Zero)                  => True
     case IsZero(Succ(_: NumericValue)) => False
     case IsZero(t)                     => IsZero(OneStepEval(t))
     case IfElse(True, t2, _)           => t2
     case IfElse(False, _, t3)          => t3
     case IfElse(t1, t2, t3)            => IfElse(OneStepEval(t1), t2, t3)
+    case IfElse(_: BadBool, _, _)      => throw new RuntimeException("E-IF-WRONG")
     case _                             => throw new RuntimeException
   }
 }
