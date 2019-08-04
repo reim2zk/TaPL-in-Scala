@@ -17,48 +17,43 @@ final class NoRuleAppliesException(message: String = null,
 
 class ML {}
 
-object isNumricVal {
+object isNumericVal {
   def apply(t: Term): Boolean = t match {
     case TmZero(_)           => true
-    case TmSucc(_, t1: Term) => isNumricVal(t1)
+    case TmSucc(_, t1: Term) => isNumericVal(t1)
     case _                   => false
   }
 }
 
 object isVal {
   def apply(t: Term): Boolean = t match {
-    case TmTrue(_)           => true
-    case TmFalse(_)          => false
-    case t if isNumricVal(t) => true
-    case _                   => false
+    case TmTrue(_)            => true
+    case TmFalse(_)           => true
+    case t if isNumericVal(t) => true
+    case _                    => false
   }
+}
 
-  object evalOne {
-    def apply(t: Term): Term = t match {
-      case TmIf(_, TmTrue(_), t2, t3)                      => t2
-      case TmIf(_, TmFalse(_), t2, t3)                     => t3
-      case TmIf(fi, t1, t2, t3)                            => TmIf(fi, evalOne(t1), t2, t3)
-      case TmSucc(fi, t1)                                  => TmSucc(fi, evalOne(t1))
-      case TmPred(_, TmZero(_))                            => TmZero(DummyInfo)
-      case TmPred(_, TmSucc(_, nv1)) if isNumricVal(nv1)   => nv1
-      case TmPred(fi, t1)                                  => TmPred(fi, evalOne(t1))
-      case TmIsZero(_, TmZero(_))                          => TmFalse(DummyInfo)
-      case TmIsZero(_, TmSucc(_, nv1)) if isNumricVal(nv1) => TmFalse(DummyInfo)
-      case TmIsZero(fi, t1)                                => TmIsZero(fi, evalOne(t1))
-      case _                                               => throw new NoRuleAppliesException
-    }
+object evalOnce {
+  def apply(t: Term): Term = t match {
+    case TmIf(_, TmTrue(_), t2, _)                        => t2
+    case TmIf(_, TmFalse(_), _, t3)                       => t3
+    case TmIf(fi, t1, t2, t3)                             => TmIf(fi, evalOnce(t1), t2, t3)
+    case TmSucc(fi, t1)                                   => TmSucc(fi, evalOnce(t1))
+    case TmPred(_, TmZero(_))                             => TmZero(DummyInfo)
+    case TmPred(_, TmSucc(_, nv1)) if isNumericVal(nv1)   => nv1
+    case TmPred(fi, t1)                                   => TmPred(fi, evalOnce(t1))
+    case TmIsZero(_, TmZero(_))                           => TmTrue(DummyInfo)
+    case TmIsZero(_, TmSucc(_, nv1)) if isNumericVal(nv1) => TmFalse(DummyInfo)
+    case TmIsZero(fi, t1)                                 => TmIsZero(fi, evalOnce(t1))
+    case _                                                => throw new NoRuleAppliesException
   }
+}
 
-  object eval {
-    def apply(t: Term): Term = t match {
-      case t: Term => {
-        try {
-          eval(evalOne(t))
-        } catch {
-          //TODO:最後の項を表示する
-          case e: Exception => throw e
-        }
-      }
+object eval {
+  def apply(t: Term): Term = {
+    try { eval(evalOnce(t)) } catch {
+      case _: NoRuleAppliesException => t
     }
   }
 }
