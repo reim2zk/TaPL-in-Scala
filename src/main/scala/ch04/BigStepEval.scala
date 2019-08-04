@@ -24,40 +24,32 @@ object isZero {
   }
 }
 
-object isSuccNv {
-  def apply(t: Term): Boolean = t match {
-    case TmSucc(_, t1) if isNumericVal(t1) => true
-    case _                                 => false
-  }
-}
-
-/*
-最終的な評価値
-今回は簡易的に，小ステップ意味論の最終的な評価値を使う
- */
-object finalVal {
-  def apply(t: Term): Term = eval(t)
-}
-
 /*
 大ステップ意味論の評価規則
 演習 4.2.2
  */
-object bigStepEval {
+object bigStep {
   def apply(t: Term): Term = t match {
-    case t if isVal(finalVal(t)) => finalVal(t)
-    case TmIf(_, t1, t2, _)
-        if isTrue(bigStepEval(t1)) && isVal(bigStepEval(t2)) =>
-      bigStepEval(t2)
-    case TmIf(_, t1, _, t3)
-        if isFalse(bigStepEval(t1)) && isVal(bigStepEval(t3)) =>
-      bigStepEval(t3)
-    case TmSucc(_, t1) if isNumericVal(bigStepEval(t1)) =>
-      TmSucc(DummyInfo, bigStepEval(t1))
-    case TmPred(_, t1) if isZero(bigStepEval(t1))     => TmZero(DummyInfo)
-    case TmPred(_, t1) if isSuccNv(bigStepEval(t1))   => bigStepEval(t1)
-    case TmIsZero(_, t1) if isZero(bigStepEval(t1))   => TmTrue(DummyInfo)
-    case TmIsZero(_, t1) if isSuccNv(bigStepEval(t1)) => TmFalse(DummyInfo)
-    case _                                            => t // 行き詰まり状態の表現
+    case t1 if isVal(t1) => t1
+    case TmIf(_, t1, t2, t3) => {
+      if (isTrue(bigStep(t1)) && isVal(bigStep(t2))) bigStep(t2)
+      else if (isFalse(bigStep(t1)) && isVal(bigStep(t3))) bigStep(t3)
+      else TmIf(DummyInfo, bigStep(t1), t2, t3)
+    }
+    case TmSucc(_, t1) if isNumericVal(bigStep(t1)) =>
+      TmSucc(DummyInfo, bigStep(t1))
+    case TmPred(_, t1) if isZero(bigStep(t1))         => TmZero(DummyInfo)
+    case TmPred(_, TmSucc(_, nv)) if isNumericVal(bigStep(nv)) => bigStep(nv)
+    case TmIsZero(_, t1) if isZero(bigStep(t1))       => TmTrue(DummyInfo)
+    case TmIsZero(_, _: TmSucc)                       => TmFalse(DummyInfo)
+    case _                                            => throw new NoRuleAppliesException
+  }
+}
+
+object bigStepEval {
+  def apply(t: Term): Term = {
+    try { bigStep(t) } catch {
+      case _: NoRuleAppliesException => t
+    }
   }
 }
