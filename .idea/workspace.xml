@@ -4,7 +4,9 @@
     <list default="true" id="35f77e00-bd13-4c44-babb-51b4a221644d" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/modules/tapl-in-scala.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules/tapl-in-scala.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/scala/ch03/Simplelanguage.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/ch03/Simplelanguage.scala" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/scala/ch04/ML.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/ch04/ML.scala" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/scala/ch03/SimpleLanguageSpec.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/scala/ch03/SimpleLanguageSpec.scala" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <ignored path="$PROJECT_DIR$/target/" />
@@ -55,17 +57,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/scala/ch03/Simplelanguage.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1740">
-              <caret line="116" column="3" selection-start-line="116" selection-start-column="3" selection-end-line="116" selection-end-column="3" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/src/main/scala/ch04/ML.scala">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="813">
-              <caret line="92" column="12" selection-start-line="92" selection-start-column="12" selection-end-line="92" selection-end-column="12" />
+            <state relative-caret-position="160">
+              <caret line="61" selection-start-line="61" selection-end-line="61" />
             </state>
           </provider>
         </entry>
@@ -73,11 +66,29 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/test/scala/ch03/SimpleLanguageSpec.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="135">
-              <caret line="12" column="22" selection-start-line="12" selection-start-column="22" selection-end-line="12" selection-end-column="22" />
+            <state relative-caret-position="1506">
+              <caret line="176" selection-start-line="176" selection-end-line="176" />
               <folding>
                 <element signature="e#14#67#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/main/scala/ch04/ML.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="197">
+              <caret line="85" selection-start-line="85" selection-end-line="85" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/build.sbt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="28">
+              <caret line="2" selection-start-line="2" selection-end-line="2" />
             </state>
           </provider>
         </entry>
@@ -119,6 +130,7 @@
         <option value="$PROJECT_DIR$/src/main/scala/ch03/Parser.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/ch03/simplelanguage.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/ch03/Simplelanguage.scala" />
+        <option value="$PROJECT_DIR$/src/test/scala/ch03/SimpleLanguageSpec.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/ch04/ML.scala" />
       </list>
     </option>
@@ -141,7 +153,6 @@
     </navigator>
     <panes>
       <pane id="PackagesPane" />
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -183,10 +194,37 @@
               <item name="scala" type="462c0819:PsiDirectoryNode" />
               <item name="ch04" type="462c0819:PsiDirectoryNode" />
             </path>
+            <path>
+              <item name="tapl-in-scala" type="b2602c69:ProjectViewProjectNode" />
+              <item name="TaPL-in-Scala" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="tapl-in-scala" type="b2602c69:ProjectViewProjectNode" />
+              <item name="TaPL-in-Scala" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
+              <item name="scala" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="tapl-in-scala" type="b2602c69:ProjectViewProjectNode" />
+              <item name="TaPL-in-Scala" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
+              <item name="scala" type="462c0819:PsiDirectoryNode" />
+              <item name="ch03" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="tapl-in-scala" type="b2602c69:ProjectViewProjectNode" />
+              <item name="TaPL-in-Scala" type="462c0819:PsiDirectoryNode" />
+              <item name="target" type="462c0819:PsiDirectoryNode" />
+            </path>
           </expand>
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -216,7 +254,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="アプリケーション.Main">
+  <component name="RunManager">
     <configuration name="Main" type="Application" factoryName="アプリケーション" temporary="true">
       <option name="MAIN_CLASS_NAME" value="ch03.Main" />
       <module name="tapl-in-scala" />
@@ -299,7 +337,7 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="3788000" />
+    <option name="totallyTimeSpent" value="8215000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -311,10 +349,10 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="1440" y="0" width="1920" height="1080" extended-state="0" />
+    <frame x="0" y="0" width="1440" height="900" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.1799787" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.16237482" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
@@ -329,7 +367,7 @@
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.32970297" />
       <window_info anchor="bottom" id="Version Control" order="7" weight="0.32891566" />
-      <window_info anchor="bottom" id="sbt-shell-toolwindow" order="8" visible="true" weight="0.02970297" />
+      <window_info active="true" anchor="bottom" id="sbt-shell-toolwindow" order="8" visible="true" weight="0.35180724" />
       <window_info anchor="bottom" id="Terminal" order="9" weight="0.32891566" />
       <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
       <window_info anchor="bottom" id="Build" order="11" weight="0.32771084" />
@@ -397,22 +435,22 @@
     <entry file="file://$PROJECT_DIR$/src/main/scala/ch03/scrap/solveRPN.sc" />
     <entry file="file://$PROJECT_DIR$/build.sbt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="38">
+        <state relative-caret-position="28">
           <caret line="2" selection-start-line="2" selection-end-line="2" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/scala/ch03/Simplelanguage.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1740">
-          <caret line="116" column="3" selection-start-line="116" selection-start-column="3" selection-end-line="116" selection-end-column="3" />
+        <state relative-caret-position="160">
+          <caret line="61" selection-start-line="61" selection-end-line="61" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/test/scala/ch03/SimpleLanguageSpec.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="135">
-          <caret line="12" column="22" selection-start-line="12" selection-start-column="22" selection-end-line="12" selection-end-column="22" />
+        <state relative-caret-position="1506">
+          <caret line="176" selection-start-line="176" selection-end-line="176" />
           <folding>
             <element signature="e#14#67#0" expanded="true" />
           </folding>
@@ -421,8 +459,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/scala/ch04/ML.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="813">
-          <caret line="92" column="12" selection-start-line="92" selection-start-column="12" selection-end-line="92" selection-end-column="12" />
+        <state relative-caret-position="197">
+          <caret line="85" selection-start-line="85" selection-end-line="85" />
         </state>
       </provider>
     </entry>

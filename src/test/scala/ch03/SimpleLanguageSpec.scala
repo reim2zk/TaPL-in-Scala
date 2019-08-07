@@ -104,27 +104,23 @@ class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
 
     for {
       t1 <- T1
-      res = assert(Consts(Succ(t1)) === Consts(t1))
-    } yield res
+    } yield  assert(Consts(Succ(t1)) === Consts(t1))
 
     for {
       t1 <- T1
-      res = assert(Consts(Pred(t1)) === Consts(t1))
-    } yield res
+    } yield assert(Consts(Pred(t1)) === Consts(t1))
 
     for {
       t1 <- T1
-      res = assert(Consts(IsZero(t1)) === Consts(t1))
-    } yield res
+    } yield assert(Consts(IsZero(t1)) === Consts(t1))
 
     for {
       t1 <- T1
       t2 <- T1
       t3 <- T1
-      res = assert(
-        Consts(IfElse(t1, t2, t3)) === (Consts(t1) union Consts(t2) union Consts(
-          t3)))
-    } res
+    } assert(
+      Consts(IfElse(t1, t2, t3)) === (Consts(t1) union Consts(t2) union Consts(
+        t3)))
   }
 
   "Size関数" should "【定義3.3.2】" in {
@@ -136,18 +132,15 @@ class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
 
     for {
       t1 <- T1
-      res = assert(Depth(Succ(t1)) === Size(t1) + 1)
-    } yield res
+    } yield assert(Depth(Succ(t1)) === Size(t1) + 1)
 
     for {
       t1 <- T1
-      res = assert(Depth(Pred(t1)) === Depth(t1) + 1)
-    } yield res
+    } yield assert(Depth(Pred(t1)) === Depth(t1) + 1)
 
     for {
       t1 <- T1
-      res = assert(Depth(IsZero(t1)) === Depth(t1) + 1)
-    } yield res
+    } yield  assert(Depth(IsZero(t1)) === Depth(t1) + 1)
 
     for {
       t1 <- T1
@@ -167,26 +160,22 @@ class SimpleLanguageSpec extends FlatSpec with DiagrammedAssertions {
 
     for {
       t1 <- T1
-      res = assert(Depth(Succ(t1)) === Depth(t1) + 1)
-    } yield res
+    } yield  assert(Depth(Succ(t1)) === Depth(t1) + 1)
 
     for {
       t1 <- T1
-      res = assert(Depth(Pred(t1)) === Depth(t1) + 1)
-    } yield res
+    } yield assert(Depth(Pred(t1)) === Depth(t1) + 1)
 
     for {
       t1 <- T1
-      res = assert(Depth(IsZero(t1)) === Depth(t1) + 1)
-    } yield res
+    } yield assert(Depth(IsZero(t1)) === Depth(t1) + 1)
 
     for {
       t1 <- T1
       t2 <- T1
       t3 <- T1
-      res = assert(Depth(IfElse(t1, t2, t3)) === List(Depth(t1),
-                                                      Depth(t2),
-                                                      Depth(t3)).max + 1)
-    } res
+    } assert(Depth(IfElse(t1, t2, t3)) === List(Depth(t1),
+      Depth(t2),
+      Depth(t3)).max + 1)
   }
 }
