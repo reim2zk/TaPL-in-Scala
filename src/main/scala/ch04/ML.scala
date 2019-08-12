@@ -15,10 +15,10 @@ final class NoRuleAppliesException(term: Term) extends RuntimeException
 
 class ML {}
 
-object isNumricVal {
+object isNumericVal {
   def apply(t: Term): Boolean = t match {
     case TmZero(_)           => true
-    case TmSucc(_, t1: Term) => isNumricVal(t1)
+    case TmSucc(_, t1: Term) => isNumericVal(t1)
     case _                   => false
   }
 }
