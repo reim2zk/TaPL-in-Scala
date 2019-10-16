@@ -2,6 +2,7 @@ package ch07
 
 sealed trait Term
 sealed trait Info
+case object Info0 extends Info
 final case class TmVar(info: Info, index: Int, contextLength: Int) extends Term
 final case class TmAbs(info: Info, v: String, t: Term) extends Term
 final case class TmApp(info: Info, t1: Term, t2: Term) extends Term
@@ -86,4 +87,81 @@ object Util {
       case t => throw new NoRuleAppliesException(t)
     }
   }
+
+  def eval(t: Term): Term = {
+    val info = Info0
+    val ctx = Context(List.empty)
+    try {
+      val t1 = eval1(info, ctx, t)
+      eval(t1)
+    } catch {
+      case _ => t
+    }
+  }
+
+  def vari(index: Int): Term = TmVar(Info0, index, index)
+  def abs(xs0: String*)(t: Term): Term = {
+    val xs = xs0.reverse
+    xs.tail.foldLeft(TmAbs(Info0, xs.head, t))((t1, x) => TmAbs(Info0, x, t1))
+  }
+  def app(ts: Term*): Term = {
+    ts.tail.foldLeft(ts.head)((t1, t2) => TmApp(Info0, t1, t2))
+  }
+
+  // λx. x
+  val id = abs("x")(vari(0))
+
+  // λt.λf. t
+  val tru = abs("t", "f")(vari(1))
+  // λt.λf. f
+  val fls = abs("t", "f")(vari(0))
+  // λl.λm.λn. l m n
+  val test = abs("l", "m", "n")(app(vari(2), vari(1), vari(0)))
+  // λb.λc. b c fls
+  val and = abs("b", "c")(app(vari(0), vari(1), fls))
+  // λb.λc. b tru c
+  val or = abs("b", "c")(app(vari(0), tru, vari(1)))
+
+  // λs.λt.λb. b s t
+  val pair = abs("s", "t", "b")(app(vari(0), vari(2), vari(1)))
+  // λp. p tru
+  val fst = abs("p")(app(vari(0), tru))
+  // λp. p fls
+  val snd = abs("p")(app(vari(0), fls))
+
+  // λs.λz. z
+  val c0 = abs("s", "z")(vari(0))
+  // λs.λz. s z
+  val c1 = abs("s", "z")(app(vari(1), vari(0)))
+  // λs.λz. s (s z)
+  val c2 = abs("s", "z")(app(vari(1), app(vari(1), vari(0))))
+  // λs.λz. s ( s(s z))
+  val c3 = abs("s", "z")(app(vari(1), app(vari(1), app(vari(1), vari(0)))))
+  // λn.λs.λz. s (n s z)
+  val scc = abs("n", "s", "z")(app(vari(1), app(vari(2), vari(1), vari(0))))
+  // λn.λm. n scc m
+  val plus = abs("n", "m")(app(vari(0), scc, vari(1)))
+  // λn.λm. m (plus n) c0
+  val times = abs("n", "m")(app(vari(0), app(plus, vari(1)), c0))
+  // λm. m (λx. fls) tru
+  val iszero = abs("m")(app(vari(0), abs("x")(fls), tru))
+  // zz = pair c0 c0
+  // ss = λn. pair n (scc n)
+  // pred = λn. fst (n ss zz)
+  val zz = app(pair, c0, c0)
+  val ss = abs("n")(app(pair, app(snd, vari(0)), app(snd, vari(0))))
+  val pred = abs("n")(app(fst, app(vari(0), ss , zz)))
+  // λn.λm. m pred n
+  val minus = abs("n", "m")(app(vari(0), pred, vari(1)))
+  // λn.λm. and (iszero (minus n m)) (iszero (minus m n))
+  val equalNumber = abs("n", "m")(
+    app(
+      and,
+      app(iszero, app(minus, vari(0), vari(1))),
+      app(iszero, app(minus, vari(1), vari(0))),
+    )
+  )
 }
+
+
+
