@@ -33,11 +33,11 @@ object Eval {
   def rec(printtm: Info, ctx: Context, t: Term): String = t match {
     case TmAbs(fi, x, t1) => {
       val (ctx1, x1) = ctx.pickFreshName(x)
-      s"(lambda $x1. ${rec(fi, ctx, t1)})"
+      s"(λ $x1. ${rec(fi, ctx1, t1)})"
     }
     case TmApp(fi, t1, t2) => s"(${rec(fi, ctx, t1)} ${rec(fi, ctx, t2)})"
-    case TmVar(fi, x, n) => {
-      if (ctx.l.length == n) { ctx.index2Name(x) } else { "[bad index]" }
+    case TmVar(_, x, _) => {
+      if (ctx.l.length > x) { ctx.index2Name(x) } else { "[bad index]" }
     }
   }
 }
@@ -61,7 +61,7 @@ object Util {
       t match {
         case TmVar(fi, x, n) =>
           if (x == j + c) termShift(c, s) else TmVar(fi, x, n)
-        case TmAbs(fi, x, t1)  => TmAbs(fi, x, walk(c + 1, t))
+        case TmAbs(fi, x, t1)  => TmAbs(fi, x, walk(c + 1, t1))
         case TmApp(fi, t1, t2) => TmApp(fi, walk(c, t1), walk(c, t2))
       }
     }
@@ -88,14 +88,21 @@ object Util {
     }
   }
 
-  def eval(t: Term): Term = {
-    val info = Info0
-    val ctx = Context(List.empty)
+  def eval(info: Info, ctx: Context, t: Term): Term = {
     try {
       val t1 = eval1(info, ctx, t)
-      eval(t1)
+      eval(info, ctx, t1)
     } catch {
-      case _ => t
+      case _: NoRuleAppliesException => t
+    }
+  }
+
+  def equalTerm(t1: Term, t2: Term): Boolean = {
+    (t1, t2) match {
+      case (TmVar(_, i1, _), TmVar(_, i2, _)) => i1 == i2
+      case (TmAbs(_, v1, t1), TmAbs(_, v2, t2)) => v1 == v2 && equalTerm(t1, t2)
+      case (TmApp(_, t11, t12), TmApp(_, t21, t22)) => equalTerm(t11, t21) && equalTerm(t12, t22)
+      case _ => false
     }
   }
 
@@ -149,7 +156,7 @@ object Util {
   // ss = λn. pair n (scc n)
   // pred = λn. fst (n ss zz)
   val zz = app(pair, c0, c0)
-  val ss = abs("n")(app(pair, app(snd, vari(0)), app(snd, vari(0))))
+  val ss = abs("n")(app(pair, app(snd, vari(0)), app(scc, vari(0))))
   val pred = abs("n")(app(fst, app(vari(0), ss , zz)))
   // λn.λm. m pred n
   val minus = abs("n", "m")(app(vari(0), pred, vari(1)))
