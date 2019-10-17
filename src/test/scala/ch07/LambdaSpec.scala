@@ -34,4 +34,11 @@ class LambdaSpec extends FlatSpec with DiagrammedAssertions {
     assert(equalTerm(tru, ev(app(equalNumber, c1, app(minus, c2, c1)))))
   }
 
+  it should "evaluate factorial" ignore {
+    val t = app(factorial, c2)
+    val s = ev(app(equalNumber, c2, t))
+    val res = equalTerm(c2, s)
+    assert(res)
+  }
+
 }

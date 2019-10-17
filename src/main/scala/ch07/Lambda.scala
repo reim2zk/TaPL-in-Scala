@@ -99,9 +99,10 @@ object Util {
 
   def equalTerm(t1: Term, t2: Term): Boolean = {
     (t1, t2) match {
-      case (TmVar(_, i1, _), TmVar(_, i2, _)) => i1 == i2
+      case (TmVar(_, i1, _), TmVar(_, i2, _))   => i1 == i2
       case (TmAbs(_, v1, t1), TmAbs(_, v2, t2)) => v1 == v2 && equalTerm(t1, t2)
-      case (TmApp(_, t11, t12), TmApp(_, t21, t22)) => equalTerm(t11, t21) && equalTerm(t12, t22)
+      case (TmApp(_, t11, t12), TmApp(_, t21, t22)) =>
+        equalTerm(t11, t21) && equalTerm(t12, t22)
       case _ => false
     }
   }
@@ -157,7 +158,7 @@ object Util {
   // pred = λn. fst (n ss zz)
   val zz = app(pair, c0, c0)
   val ss = abs("n")(app(pair, app(snd, vari(0)), app(scc, vari(0))))
-  val pred = abs("n")(app(fst, app(vari(0), ss , zz)))
+  val pred = abs("n")(app(fst, app(vari(0), ss, zz)))
   // λn.λm. m pred n
   val minus = abs("n", "m")(app(vari(0), pred, vari(1)))
   // λn.λm. and (iszero (minus n m)) (iszero (minus m n))
@@ -168,7 +169,16 @@ object Util {
       app(iszero, app(minus, vari(1), vari(0))),
     )
   )
+  // fix = λf. (λx. f (λy. x x y)) (λx. f (λy. x x y))
+  val yxx = abs("x")(app(vari(1), abs("y")(app(vari(1), vari(1), vari(2)))))
+  val fix = abs("f")(app(yxx, yxx))
+  val g = abs("fct", "n")(
+    app(
+      test,
+      app(equalNumber, vari(0), c0),
+      c1,
+      app(times, vari(0), app(vari(1), app(pred, vari(0))))
+    )
+  )
+  val factorial = app(fix, g)
 }
-
-
-
