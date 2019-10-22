@@ -144,10 +144,10 @@ object Util {
   // λm. m (λx. fls) tru
   val iszero = abs("m")(app(vari(0), abs("x")(fls), tru))
   // zz = pair c0 c0
-  // ss = λn. pair n (scc n)
+  // ss = λp. pair (snd p) (scc (snd p))
   // pred = λn. fst (n ss zz)
   val zz = app(pair, c0, c0)
-  val ss = abs("n")(app(pair, app(snd, vari(0)), app(scc, vari(0))))
+  val ss = abs("p")(app(pair, app(snd, vari(0)), app(scc, app(snd, vari(0)))))
   val pred = abs("n")(app(fst, app(vari(0), ss, zz)))
   // λn.λm. m pred n
   val minus = abs("n", "m")(app(vari(0), pred, vari(1)))

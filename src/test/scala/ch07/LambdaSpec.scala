@@ -14,6 +14,9 @@ class LambdaSpec extends FlatSpec with DiagrammedAssertions {
       case _ => false
     }
   }
+  def eqn(t1: Term, t2: Term): Boolean = {
+    eq(tru, app(equalNumber, t1, t2))
+  }
   def ev(t: Term): Term = eval(Info0, Context(List.empty), t)
   def pr(t: Term): String = Eval.rec(Info0, Context(List.empty), t)
 
@@ -38,16 +41,18 @@ class LambdaSpec extends FlatSpec with DiagrammedAssertions {
   it should "have number" in {
     assert(eq(tru, app(iszero, app(pred, c1))))
     assert(eq(fls, app(iszero, app(pred, c2))))
-    assert(eq(tru, app(equalNumber, c2, app(scc, c1))))
-    assert(eq(tru, app(equalNumber, c3, app(plus, c1, c2))))
-    assert(eq(tru, app(equalNumber, c1, app(minus, c2, c1))))
+
+    assert(eq(tru, app(iszero, app(minus, c3, c3))))
+    assert(eq(tru, app(iszero, app(minus, c2, c3))))
+    assert(eq(fls, app(iszero, app(minus, c3, c2))))
+
+    assert(eqn(c2, app(scc, c1)))
+    assert(eqn(c3, app(plus, c1, c2)))
+    assert(eqn(c1, app(minus, c2, c1)))
   }
 
   it should "evaluate factorial" ignore {
-    val t = app(factorial, c2)
-    val s = ev(app(equalNumber, c2, t))
-    val res = eq(c2, s)
-    assert(res)
+    assert(eqn(c2, app(factorial, c2)))
   }
 
 }
