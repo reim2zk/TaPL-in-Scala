@@ -5,6 +5,15 @@ import org.scalatest.{DiagrammedAssertions, FlatSpec}
 class LambdaSpec extends FlatSpec with DiagrammedAssertions {
   import ch07.Util._
 
+  def eq(t1: Term, t2: Term): Boolean = {
+    (ev(t1), ev(t2)) match {
+      case (TmVar(_, i1, _), TmVar(_, i2, _))   => i1 == i2
+      case (TmAbs(_, v1, t1), TmAbs(_, v2, t2)) => v1 == v2 && eq(t1, t2)
+      case (TmApp(_, t11, t12), TmApp(_, t21, t22)) =>
+        eq(t11, t21) && eq(t12, t22)
+      case _ => false
+    }
+  }
   def ev(t: Term): Term = eval(Info0, Context(List.empty), t)
   def pr(t: Term): String = Eval.rec(Info0, Context(List.empty), t)
 
@@ -15,29 +24,29 @@ class LambdaSpec extends FlatSpec with DiagrammedAssertions {
   it should "have boolean" in {
     assert(c0 === ev(app(test, tru, c0, c1)))
     assert(c1 === ev(app(test, fls, c0, c1)))
-    assert(equalTerm(tru, ev(app(and, tru, tru))))
-    assert(equalTerm(fls, ev(app(and, tru, fls))))
-    assert(equalTerm(tru, ev(app(or, tru, tru))))
-    assert(equalTerm(tru, ev(app(or, tru, fls))))
+    assert(eq(tru, app(and, tru, tru)))
+    assert(eq(fls, app(and, tru, fls)))
+    assert(eq(tru, app(or, tru, tru)))
+    assert(eq(tru, app(or, tru, fls)))
   }
 
   it should "have pair" in {
-    assert(equalTerm(c0, ev(app(fst, app(pair, c0, c1)))))
-    assert(equalTerm(c1, ev(app(snd, app(pair, c0, c1)))))
+    assert(eq(c0, app(fst, app(pair, c0, c1))))
+    assert(eq(c1, app(snd, app(pair, c0, c1))))
   }
 
   it should "have number" in {
-    assert(equalTerm(tru, ev(app(iszero, app(pred, c1)))))
-    assert(equalTerm(fls, ev(app(iszero, app(pred, c2)))))
-    assert(equalTerm(tru, ev(app(equalNumber, c2, app(scc, c1)))))
-    assert(equalTerm(tru, ev(app(equalNumber, c3, app(plus, c1, c2)))))
-    assert(equalTerm(tru, ev(app(equalNumber, c1, app(minus, c2, c1)))))
+    assert(eq(tru, app(iszero, app(pred, c1))))
+    assert(eq(fls, app(iszero, app(pred, c2))))
+    assert(eq(tru, app(equalNumber, c2, app(scc, c1))))
+    assert(eq(tru, app(equalNumber, c3, app(plus, c1, c2))))
+    assert(eq(tru, app(equalNumber, c1, app(minus, c2, c1))))
   }
 
   it should "evaluate factorial" ignore {
     val t = app(factorial, c2)
     val s = ev(app(equalNumber, c2, t))
-    val res = equalTerm(c2, s)
+    val res = eq(c2, s)
     assert(res)
   }
 

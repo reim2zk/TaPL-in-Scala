@@ -97,16 +97,6 @@ object Util {
     }
   }
 
-  def equalTerm(t1: Term, t2: Term): Boolean = {
-    (t1, t2) match {
-      case (TmVar(_, i1, _), TmVar(_, i2, _))   => i1 == i2
-      case (TmAbs(_, v1, t1), TmAbs(_, v2, t2)) => v1 == v2 && equalTerm(t1, t2)
-      case (TmApp(_, t11, t12), TmApp(_, t21, t22)) =>
-        equalTerm(t11, t21) && equalTerm(t12, t22)
-      case _ => false
-    }
-  }
-
   def vari(index: Int): Term = TmVar(Info0, index, index)
   def abs(xs0: String*)(t: Term): Term = {
     val xs = xs0.reverse
