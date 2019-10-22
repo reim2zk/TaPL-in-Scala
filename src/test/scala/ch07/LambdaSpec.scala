@@ -51,8 +51,12 @@ class LambdaSpec extends FlatSpec with DiagrammedAssertions {
     assert(eqn(c1, app(minus, c2, c1)))
   }
 
-  it should "evaluate factorial" ignore {
-    assert(eqn(c2, app(factorial, c2)))
+  it should "evaluate factorial" in {
+    val fct2 = lazyEval(Info0, Context(List.empty), app(factorial, c2))
+    assert(eqn(c2, fct2))
+
+    val fct3 = lazyEval(Info0, Context(List.empty), app(factorial, c3))
+    assert(eqn(app(times, c2, c3), fct3))
   }
 
 }

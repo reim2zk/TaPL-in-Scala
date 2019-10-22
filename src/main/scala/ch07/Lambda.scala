@@ -97,6 +97,26 @@ object Util {
     }
   }
 
+
+  def lazyEval1(info: Info, ctx: Context, t: Term): Term = {
+    t match {
+      case TmApp(_, TmAbs(_, _, t12), t2) =>
+        termSubstTop(t2, t12)
+      case TmApp(fi, t1, t2) =>
+        TmApp(fi, lazyEval1(fi, ctx, t1), t2)
+      case t => throw new NoRuleAppliesException(t)
+    }
+  }
+
+  def lazyEval(info: Info, ctx: Context, t: Term): Term = {
+    try {
+      val t1 = lazyEval1(info, ctx, t)
+      lazyEval(info, ctx, t1)
+    } catch {
+      case _: NoRuleAppliesException => t
+    }
+  }
+
   def vari(index: Int): Term = TmVar(Info0, index, index)
   def abs(xs0: String*)(t: Term): Term = {
     val xs = xs0.reverse
@@ -160,7 +180,7 @@ object Util {
     )
   )
   // fix = λf. (λx. f (λy. x x y)) (λx. f (λy. x x y))
-  val yxx = abs("x")(app(vari(1), abs("y")(app(vari(1), vari(1), vari(2)))))
+  val yxx = abs("x")(app(vari(1), abs("y")(app(vari(1), vari(1), vari(0)))))
   val fix = abs("f")(app(yxx, yxx))
   val g = abs("fct", "n")(
     app(
