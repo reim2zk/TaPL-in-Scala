@@ -121,22 +121,15 @@ object Context {
 
 object SimpleExt {
 
-  def termWalker(fVar: (Int, TmVar) => Term): (Int, Term) => Term = { (d, t) =>
-    {
-      def walk(c: Int, t: Term): Term = t match {
-        case x: TmVar             => fVar(d, x)
-        case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
-        case TmApp(fi, t1, t2)    => TmApp(fi, walk(c, t1), walk(c, t2))
-        case TmTrue(_)            => t
-        case TmFalse(_)           => t
-        case TmIf(fi, t1, t2, t3) =>
-          TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
-        case TmUnit(fi)            => TmUnit(fi)
-        case TmProduct(fi, t1, t2) => TmProduct(fi, walk(c, t1), walk(c, t2))
-        case TmFirst(fi, t1)       => TmFirst(fi, walk(c, t1))
-        case TmSecond(fi, t1)      => TmSecond(fi, walk(c, t1))
-      }
-      walk(0, t)
+  def applyAll(t: Term, f: Term => Term): Term = {
+    t match {
+      case TmVar(fi, x, n)      => TmVar(fi, x, n)
+      case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, f(t1))
+      case TmApp(fi, t1, t2)    => TmApp(fi, f(t1), f(t2))
+      case TmTrue(_)            => t
+      case TmFalse(_)           => t
+      case TmIf(fi, t1, t2, t3) => TmIf(fi, f(t1), f(t2), f(t3))
+      case TmUnit(fi)           => TmUnit(fi)
     }
   }
 
@@ -145,14 +138,8 @@ object SimpleExt {
       case TmVar(fi, x, n) =>
         if (x >= c) TmVar(fi, x + d, n + d) else TmVar(fi, x, n + d)
       case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
-      case TmApp(fi, t1, t2)    => TmApp(fi, walk(c, t1), walk(c, t2))
-      case TmTrue(_)            => t
-      case TmFalse(_)           => t
-      case TmIf(fi, t1, t2, t3) =>
-        TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
-      case TmUnit(fi) => TmUnit(fi)
+      case t                    => applyAll(t, walk(c, _))
     }
-
     walk(0, t)
   }
 
@@ -162,15 +149,9 @@ object SimpleExt {
         case TmVar(fi, x, n) =>
           if (x == j + c) termShift(c, s) else TmVar(fi, x, n)
         case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
-        case TmApp(fi, t1, t2)    => TmApp(fi, walk(c, t1), walk(c, t2))
-        case TmTrue(_)            => t
-        case TmFalse(_)           => t
-        case TmIf(fi, t1, t2, t3) =>
-          TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
-        case TmUnit(fi) => TmUnit(fi)
+        case _                    => applyAll(t, walk(c, _))
       }
     }
-
     walk(0, t)
   }
 

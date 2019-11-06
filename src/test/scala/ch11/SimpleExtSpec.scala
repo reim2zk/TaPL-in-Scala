@@ -38,9 +38,21 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
     val id = absTypeLess("x")(vari(0))
     val tru = absTypeLess("t", "f")(vari(1))
     val fls = absTypeLess("t", "f")(vari(0))
+    val test = absTypeLess("l", "m", "n")(app(vari(2), vari(1), vari(0)))
+    // λb.λc. b c fls
+    val and = absTypeLess("b", "c")(app(vari(0), vari(1), fls))
+    // λb.λc. b tru c
+    val or = absTypeLess("b", "c")(app(vari(0), tru, vari(1)))
+
     val ts = Seq(tru, fls)
     ts.foreach { t =>
       assert(eq(t, app(id, t)))
+      assert(eq(t, app(test, tru, t, fls)))
+      assert(eq(t, app(test, fls, fls, t)))
     }
+    assert(eq(tru, app(and, tru, tru)))
+    assert(eq(fls, app(and, tru, fls)))
+    assert(eq(tru, app(or, tru, tru)))
+    assert(eq(tru, app(or, tru, fls)))
   }
 }
