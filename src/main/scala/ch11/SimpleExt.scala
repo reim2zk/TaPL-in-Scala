@@ -123,13 +123,16 @@ object SimpleExt {
 
   def applyAll(t: Term, f: Term => Term): Term = {
     t match {
-      case TmVar(fi, x, n)      => TmVar(fi, x, n)
-      case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, f(t1))
-      case TmApp(fi, t1, t2)    => TmApp(fi, f(t1), f(t2))
-      case TmTrue(_)            => t
-      case TmFalse(_)           => t
-      case TmIf(fi, t1, t2, t3) => TmIf(fi, f(t1), f(t2), f(t3))
-      case TmUnit(fi)           => TmUnit(fi)
+      case TmVar(fi, x, n)       => TmVar(fi, x, n)
+      case TmAbs(fi, x, ty, t1)  => TmAbs(fi, x, ty, f(t1))
+      case TmApp(fi, t1, t2)     => TmApp(fi, f(t1), f(t2))
+      case TmTrue(_)             => t
+      case TmFalse(_)            => t
+      case TmIf(fi, t1, t2, t3)  => TmIf(fi, f(t1), f(t2), f(t3))
+      case TmUnit(_)             => t
+      case TmProduct(fi, t1, t2) => TmProduct(fi, f(t1), f(t2))
+      case TmFirst(fi, t)        => TmFirst(fi, f(t))
+      case TmSecond(fi, t)       => TmSecond(fi, f(t))
     }
   }
 
@@ -174,6 +177,9 @@ object SimpleExt {
       TmApp(fi, v1, eval1(fi, ctx, t2))
     case TmApp(fi, t1, t2) =>
       TmApp(fi, eval1(fi, ctx, t1), t2)
+    case TmIf(_, TmTrue(_), t1, _)  => t1
+    case TmIf(_, TmFalse(_), _, t2) => t2
+    case TmIf(fi, t1, t2, t3)       => TmIf(fi, eval1(info, ctx, t1), t2, t3)
     case TmFirst(_, TmProduct(_, v1, v2)) if isVal(ctx, v1) && isVal(ctx, v2) =>
       v1
     case TmSecond(_, TmProduct(_, v1, v2))
@@ -194,4 +200,6 @@ object SimpleExt {
     } catch {
       case _: NoRuleAppliesException => t
     }
+
+  def typeOf(info: Info, ctx: Context, t: Term): Type = ctx.typeOf(t)
 }

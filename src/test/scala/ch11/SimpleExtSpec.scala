@@ -22,12 +22,22 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
         v1 == v2 && eq(t1, t2)
       case (TmApp(_, t11, t12), TmApp(_, t21, t22)) =>
         eq(t11, t21) && eq(t12, t22)
-      case _ => false
+      case (TmTrue(_), TmTrue(_))   => true
+      case (TmFalse(_), TmFalse(_)) => true
+      case (TmIf(_, t11, t12, t13), TmIf(_, t21, t22, t23)) =>
+        eq(t11, t21) && eq(t12, t22) && eq(t13, t23)
+      case (TmUnit(_), TmUnit(_)) => true
+      case (TmProduct(_, t11, t12), TmProduct(_, t21, t22)) =>
+        eq(t11, t21) && eq(t12, t22)
+      case (TmFirst(_, t1), TmFirst(_, t2))   => eq(t1, t2)
+      case (TmSecond(_, t1), TmSecond(_, t2)) => eq(t1, t2)
+      case _                                  => false
     }
   }
   def ev(t: Term): Term = eval(Info0, Context(), t)
+  def ty(t: Term): Type = typeOf(Info0, Context(), t)
 
-  "SimpleExt" should "contain typeless Lambda" in {
+  "SimpleExt" should "contain typeless Lambda eval" in {
     // FIXME: absTypeLess can be defined using abs
     def absTypeLess(xs0: String*)(t: Term): Term = {
       val xs = xs0.map(x => (x, TyBool)).reverse
@@ -39,9 +49,7 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
     val tru = absTypeLess("t", "f")(vari(1))
     val fls = absTypeLess("t", "f")(vari(0))
     val test = absTypeLess("l", "m", "n")(app(vari(2), vari(1), vari(0)))
-    // λb.λc. b c fls
     val and = absTypeLess("b", "c")(app(vari(0), vari(1), fls))
-    // λb.λc. b tru c
     val or = absTypeLess("b", "c")(app(vari(0), tru, vari(1)))
 
     val ts = Seq(tru, fls)
@@ -54,5 +62,40 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
     assert(eq(fls, app(and, tru, fls)))
     assert(eq(tru, app(or, tru, tru)))
     assert(eq(tru, app(or, tru, fls)))
+  }
+
+  it should "support evaluating boolean" in {
+    val unit = TmUnit(Info0)
+    val ts = Seq(TmTrue(Info0), TmFalse(Info0))
+    ts.foreach { t =>
+      assert(eq(t, TmIf(Info0, TmTrue(Info0), t, unit)))
+      assert(eq(t, TmIf(Info0, TmFalse(Info0), unit, t)))
+      assert(
+        eq(
+          t,
+          TmIf(Info0, TmIf(Info0, TmTrue(Info0), TmTrue(Info0), unit), t, unit)
+        )
+      )
+    }
+  }
+
+  it should "support evaluating pair" in {
+    val unit = TmUnit(Info0)
+    val ts = Seq(TmTrue(Info0), TmFalse(Info0))
+    ts.foreach { t =>
+      assert(eq(t, TmFirst(Info0, TmProduct(Info0, t, unit))))
+      assert(eq(t, TmSecond(Info0, TmProduct(Info0, unit, t))))
+    }
+  }
+
+  it should "support typing" in {
+    assert(TyBool === ty(TmTrue(Info0)))
+    assert(TyBool === ty(TmFalse(Info0)))
+
+    val ts = Seq(TmTrue(Info0), TmFalse(Info0))
+    ts.foreach { t =>
+      assert(ty(t) === ty(TmIf(Info0, TmTrue(Info0), TmUnit(Info0), t)))
+    }
+
   }
 }
