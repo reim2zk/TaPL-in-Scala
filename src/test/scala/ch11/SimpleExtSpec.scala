@@ -35,7 +35,7 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
     }
   }
   def ev(t: Term): Term = eval(Info0, Context(), t)
-  def ty(t: Term): Type = typeOf(Info0, Context(), t)
+  def ty(t: Term): Type = Context().typeOf(t)
 
   "SimpleExt" should "contain typeless Lambda eval" in {
     // FIXME: absTypeLess can be defined using abs
@@ -89,13 +89,26 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
   }
 
   it should "support typing" in {
+    val ts = Seq(TmTrue(Info0), TmFalse(Info0), TmUnit(Info0))
     assert(TyBool === ty(TmTrue(Info0)))
     assert(TyBool === ty(TmFalse(Info0)))
+    assert(TyUnit === ty(TmUnit(Info0)))
 
-    val ts = Seq(TmTrue(Info0), TmFalse(Info0))
-    ts.foreach { t =>
-      assert(ty(t) === ty(TmIf(Info0, TmTrue(Info0), TmUnit(Info0), t)))
+    ts.foreach { t1 =>
+      val  ty1 = ty(t1)
+      assert(ty1 === ty(TmIf(Info0, TmTrue(Info0), t1, t1)))
+      ts.foreach { t2 =>
+        val  ty2 = ty(t2)
+
+        val f = TmAbs(Info0, "x", ty1, t2)
+        assert(TyArr(ty1, ty2) === ty(f))
+        assert(ty2 === ty(TmApp(Info0, f, t1)))
+
+        val p = TmProduct(Info0, t1, t2)
+        assert(TyProduct(ty1, ty2) === ty(p))
+        assert(ty1 === ty(TmFirst(Info0, p)))
+        assert(ty2 === ty(TmSecond(Info0, p)))
+      }
     }
-
   }
 }

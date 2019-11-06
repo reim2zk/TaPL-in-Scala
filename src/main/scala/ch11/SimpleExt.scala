@@ -26,6 +26,12 @@ final case class TmFirst(info: Info, t: Term) extends Term
 
 final case class TmSecond(info: Info, t: Term) extends Term
 
+final case class TmInl(info: Info, t1: Term, ty2: Type) extends Term
+
+final case class TmInr(info: Info, ty1: Type, t2: Term) extends Term
+
+final case class TmCase(info: Info, t: Term, xl: String, tl: Term, xr: String, tr: Term) extends Term
+
 sealed trait Type
 
 final case class TyArr(ty1: Type, ty2: Type) extends Type
@@ -35,6 +41,8 @@ case object TyBool extends Type
 case object TyUnit extends Type
 
 case class TyProduct(tyT1: Type, tyT2: Type) extends Type
+
+case class TySum(tyT1: Type, tyT2: Type) extends Type
 
 sealed trait Binding
 
@@ -105,6 +113,21 @@ case class Context(l: List[(String, Binding)]) {
         case TyProduct(_, ty12) => ty12
         case _                  => error(fi, "")
       }
+    case TmInl(_, t1, ty2) => TySum(typeOf(t1), ty2)
+    case TmInr(_, ty1, t2) => TySum(ty1, typeOf(t2))
+    case TmCase(fi, t0, x1, t1, x2, t2) =>
+      typeOf(t0) match {
+        case TySum(ty1, ty2) => {
+          val tyT = addBinding(x1, VarBind(ty1)).typeOf(t1)
+          val tyTPrime = addBinding(x2, VarBind(ty2)).typeOf(t2)
+          if(tyT == tyTPrime) {
+            tyT
+          } else {
+            error(fi, "")
+          }
+        }
+        case _ => error(fi, "")
+      }
   }
 
   @throws
@@ -131,8 +154,11 @@ object SimpleExt {
       case TmIf(fi, t1, t2, t3)  => TmIf(fi, f(t1), f(t2), f(t3))
       case TmUnit(_)             => t
       case TmProduct(fi, t1, t2) => TmProduct(fi, f(t1), f(t2))
-      case TmFirst(fi, t)        => TmFirst(fi, f(t))
-      case TmSecond(fi, t)       => TmSecond(fi, f(t))
+      case TmFirst(fi, t1)        => TmFirst(fi, f(t1))
+      case TmSecond(fi, t1)       => TmSecond(fi, f(t1))
+      case TmInl(fi, t1, ty2) => TmInl(fi, f(t1), ty2)
+      case TmInr(fi, ty1, t2) => TmInr(fi, ty1, f(t2))
+      case TmCase(fi, t0, x1, t1, x2, t2) => TmCase(fi, f(t0), x1, f(t1), x2, f(t2))
     }
   }
 
@@ -167,6 +193,8 @@ object SimpleExt {
     case TmFalse(_)                                               => true
     case TmUnit(_)                                                => true
     case TmProduct(_, v1, v2) if isVal(ctx, v1) && isVal(ctx, v2) => true
+    case TmInl(_, v1, _) if isVal(ctx, v1)                        => true
+    case TmInr(_, _, v2) if isVal(ctx, v2)                        => true
     case _                                                        => false
   }
 
@@ -190,6 +218,11 @@ object SimpleExt {
     case TmProduct(fi, t1, t2) => TmProduct(fi, eval1(fi, ctx, t1), t2)
     case TmProduct(fi, v1, t2) if isVal(ctx, v1) =>
       TmProduct(fi, v1, eval1(fi, ctx, t2))
+    case TmCase(_, TmInl(_, v0, _), _, t1, _, _) if isVal(ctx, v0) => termSubstTop(v0, t1)
+    case TmCase(_, TmInr(_, _, v0), _, _, _, t2) if isVal(ctx, v0) => termSubstTop(v0, t2)
+    case TmCase(fi, t0, x1, t1, x2, t2) => TmCase(fi, eval1(info, ctx, t0), x1, t1, x2, t2)
+    case TmInl(fi, t1, ty2) => TmInl(fi, eval1(info, ctx, t1), ty2)
+    case TmInr(fi, ty1, t2) => TmInr(fi, ty1, eval1(info, ctx, t2))
     case _ => throw NoRuleAppliesException(t)
   }
 
@@ -200,6 +233,4 @@ object SimpleExt {
     } catch {
       case _: NoRuleAppliesException => t
     }
-
-  def typeOf(info: Info, ctx: Context, t: Term): Type = ctx.typeOf(t)
 }
