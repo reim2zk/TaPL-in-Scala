@@ -20,14 +20,11 @@ final case class TmIf(info: Info, t1: Term, t2: Term, t3: Term) extends Term
 
 final case class TmUnit(info: Info) extends Term
 
-final case class TmSeq(info: Info, t1: Term, t2: Term) extends Term
-
 final case class TmProduct(info: Info, t1: Term, t2: Term) extends Term
 
 final case class TmFirst(info: Info, t: Term) extends Term
 
 final case class TmSecond(info: Info, t: Term) extends Term
-
 
 sealed trait Type
 
@@ -38,7 +35,6 @@ case object TyBool extends Type
 case object TyUnit extends Type
 
 case class TyProduct(tyT1: Type, tyT2: Type) extends Type
-
 
 sealed trait Binding
 
@@ -65,7 +61,7 @@ case class Context(l: List[(String, Binding)]) {
 
   def getTypeFromContext(fi: Info, i: Int): Type = getBinding(i) match {
     case VarBind(tyT: Type) => tyT
-    case _ => error(fi, s"Wrong kind of binding for variable ${index2Name(i)}")
+    case _                  => error(fi, s"Wrong kind of binding for variable ${index2Name(i)}")
   }
 
   def isNameBound(x: String): Boolean = l.exists(_._1 == x)
@@ -85,17 +81,16 @@ case class Context(l: List[(String, Binding)]) {
       val tyT2 = typeOf(t2)
       tyT1 match {
         case TyArr(tyT11, tyT12) if tyT2 == tyT11 => tyT12
-        case TyArr(_, _) => error(fi, "parameter type mismatch")
-        case _ => error(fi, "arrow type expected")
+        case TyArr(_, _)                          => error(fi, "parameter type mismatch")
+        case _                                    => error(fi, "arrow type expected")
       }
-    case TmTrue(_) => TyBool
+    case TmTrue(_)  => TyBool
     case TmFalse(_) => TyBool
     case TmIf(fi, t1, t2, t3) if typeOf(t1) == TyBool =>
       if (typeOf(t2) == typeOf(t3)) typeOf(t2)
       else error(fi, "arms of conditional have different types")
     case TmIf(fi, _, _, _) => error(fi, "guard of conditional not a boolean")
-    case TmUnit(_) => TyUnit
-    case TmSeq(_, t1, t2) if typeOf(t1) == TyUnit => typeOf(t2)
+    case TmUnit(_)         => TyUnit
     case TmProduct(_, t1, t2) =>
       val tyT1 = typeOf(t1)
       val tyT2 = typeOf(t2)
@@ -103,12 +98,12 @@ case class Context(l: List[(String, Binding)]) {
     case TmFirst(fi, t1) =>
       typeOf(t1) match {
         case TyProduct(ty11, _) => ty11
-        case _ =>  error(fi, "")
+        case _                  => error(fi, "")
       }
     case TmSecond(fi, t1) =>
       typeOf(t1) match {
         case TyProduct(_, ty12) => ty12
-        case _ =>  error(fi, "")
+        case _                  => error(fi, "")
       }
   }
 
@@ -120,23 +115,26 @@ case class Context(l: List[(String, Binding)]) {
     sys.exit(1) // Scala の sys.exit() は Nothing を返すので任意の型として扱える！
   }
 }
+object Context {
+  def apply(): Context = Context(List.empty)
+}
 
-object Util {
+object SimpleExt {
 
-  def termWalker(fVar: (Int, TmVar)=>Term): (Int, Term)=>Term = {
-    (d, t) => {
+  def termWalker(fVar: (Int, TmVar) => Term): (Int, Term) => Term = { (d, t) =>
+    {
       def walk(c: Int, t: Term): Term = t match {
-        case x: TmVar => fVar(d, x)
+        case x: TmVar             => fVar(d, x)
         case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
-        case TmApp(fi, t1, t2) => TmApp(fi, walk(c, t1), walk(c, t2))
-        case TmTrue(_) => t
-        case TmFalse(_) => t
-        case TmIf(fi, t1, t2, t3) => TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
-        case TmUnit(fi) => TmUnit(fi)
-        case TmSeq(fi, t1, t2) => TmSeq(fi, walk(c, t1), walk(c, t2))
+        case TmApp(fi, t1, t2)    => TmApp(fi, walk(c, t1), walk(c, t2))
+        case TmTrue(_)            => t
+        case TmFalse(_)           => t
+        case TmIf(fi, t1, t2, t3) =>
+          TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
+        case TmUnit(fi)            => TmUnit(fi)
         case TmProduct(fi, t1, t2) => TmProduct(fi, walk(c, t1), walk(c, t2))
-        case TmFirst(fi, t1) => TmFirst(fi, walk(c, t1))
-        case TmSecond(fi, t1) => TmSecond(fi, walk(c, t1))
+        case TmFirst(fi, t1)       => TmFirst(fi, walk(c, t1))
+        case TmSecond(fi, t1)      => TmSecond(fi, walk(c, t1))
       }
       walk(0, t)
     }
@@ -144,14 +142,15 @@ object Util {
 
   def termShift(d: Int, t: Term): Term = {
     def walk(c: Int, t: Term): Term = t match {
-      case TmVar(fi, x, n) => if (x >= c) TmVar(fi, x + d, n + d) else TmVar(fi, x, n + d)
+      case TmVar(fi, x, n) =>
+        if (x >= c) TmVar(fi, x + d, n + d) else TmVar(fi, x, n + d)
       case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
-      case TmApp(fi, t1, t2) => TmApp(fi, walk(c, t1), walk(c, t2))
-      case TmTrue(_) => t
-      case TmFalse(_) => t
-      case TmIf(fi, t1, t2, t3) => TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
+      case TmApp(fi, t1, t2)    => TmApp(fi, walk(c, t1), walk(c, t2))
+      case TmTrue(_)            => t
+      case TmFalse(_)           => t
+      case TmIf(fi, t1, t2, t3) =>
+        TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
       case TmUnit(fi) => TmUnit(fi)
-      case TmSeq(fi, t1, t2) => TmSeq(fi, walk(c, t1), walk(c, t2))
     }
 
     walk(0, t)
@@ -163,12 +162,12 @@ object Util {
         case TmVar(fi, x, n) =>
           if (x == j + c) termShift(c, s) else TmVar(fi, x, n)
         case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
-        case TmApp(fi, t1, t2) => TmApp(fi, walk(c, t1), walk(c, t2))
-        case TmTrue(_) => t
-        case TmFalse(_) => t
-        case TmIf(fi, t1, t2, t3) => TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
+        case TmApp(fi, t1, t2)    => TmApp(fi, walk(c, t1), walk(c, t2))
+        case TmTrue(_)            => t
+        case TmFalse(_)           => t
+        case TmIf(fi, t1, t2, t3) =>
+          TmIf(fi, walk(c, t1), walk(c, t2), walk(c, t3))
         case TmUnit(fi) => TmUnit(fi)
-        case TmSeq(fi, t1, t2) => TmSeq(fi, walk(c, t1), walk(c, t2))
       }
     }
 
@@ -179,12 +178,12 @@ object Util {
     termShift(-1, termSubst(0, termShift(1, s), t))
 
   def isVal(ctx: Context, t: Term): Boolean = t match {
-    case TmAbs(_, _, _, _) => true
-    case TmTrue(_) => true
-    case TmFalse(_) => true
-    case TmUnit(_) => true
+    case TmAbs(_, _, _, _)                                        => true
+    case TmTrue(_)                                                => true
+    case TmFalse(_)                                               => true
+    case TmUnit(_)                                                => true
     case TmProduct(_, v1, v2) if isVal(ctx, v1) && isVal(ctx, v2) => true
-    case _ => false
+    case _                                                        => false
   }
 
   def eval1(info: Info, ctx: Context, t: Term): Term = t match {
@@ -194,14 +193,16 @@ object Util {
       TmApp(fi, v1, eval1(fi, ctx, t2))
     case TmApp(fi, t1, t2) =>
       TmApp(fi, eval1(fi, ctx, t1), t2)
-    case TmSeq(fi, t1, t2) => TmSeq(fi, eval1(fi, ctx, t1), t2)
-    case TmSeq(fi, v, t2) if isVal(ctx, v) => TmSeq(fi, v, eval1(fi, ctx, t2))
-    case TmFirst(_, TmProduct(_, v1, v2)) if isVal(ctx, v1) && isVal(ctx, v2) => v1
-    case TmSecond(_, TmProduct(_, v1, v2)) if isVal(ctx, v1) && isVal(ctx, v2) => v2
-    case TmFirst(fi, t1) => TmFirst(fi, eval1(fi, ctx, t1))
-    case TmSecond(fi, t1) => TmFirst(fi, eval1(fi, ctx, t1))
+    case TmFirst(_, TmProduct(_, v1, v2)) if isVal(ctx, v1) && isVal(ctx, v2) =>
+      v1
+    case TmSecond(_, TmProduct(_, v1, v2))
+        if isVal(ctx, v1) && isVal(ctx, v2) =>
+      v2
+    case TmFirst(fi, t1)       => TmFirst(fi, eval1(fi, ctx, t1))
+    case TmSecond(fi, t1)      => TmFirst(fi, eval1(fi, ctx, t1))
     case TmProduct(fi, t1, t2) => TmProduct(fi, eval1(fi, ctx, t1), t2)
-    case TmProduct(fi, v1, t2) if isVal(ctx, v1) => TmProduct(fi, v1, eval1(fi, ctx, t2))
+    case TmProduct(fi, v1, t2) if isVal(ctx, v1) =>
+      TmProduct(fi, v1, eval1(fi, ctx, t2))
     case _ => throw NoRuleAppliesException(t)
   }
 
