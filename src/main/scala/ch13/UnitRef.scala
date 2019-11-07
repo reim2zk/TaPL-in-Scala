@@ -11,7 +11,8 @@ object UnitRef {
 
   sealed trait Term extends ExternalTerm
 
-  final case class TmVar(info: Info, index: Int, contextLength: Int) extends Term
+  final case class TmVar(info: Info, index: Int, contextLength: Int)
+      extends Term
 
   final case class TmAbs(info: Info, v: String, ty: Type, t: Term) extends Term
 
@@ -19,7 +20,7 @@ object UnitRef {
 
   final case class TmRef(info: Info, t: Term) extends Term
 
-  final case class TmGet(info: Info, t: Term) extends Term
+  final case class TmDeRef(info: Info, t: Term) extends Term
 
   final case class TmAssign(info: Info, t1: Term, t2: Term) extends Term
 
@@ -37,6 +38,8 @@ object UnitRef {
 
   final case class TyArr(ty1: Type, ty2: Type) extends Type
 
+  case class TyRef(tyT: Type) extends Type
+
   case object TyBool extends Type
 
   case object TyUnit extends Type
@@ -53,9 +56,18 @@ object UnitRef {
 
   final case class NoRuleAppliesException(term: Term) extends RuntimeException
 
-  case class Store(l: Map[Int, Term]) {}
+  case class Store(map: Map[Int, Term]) {
+    def unboundedLocation(info: Info): TmLocation =
+      TmLocation(info, map.keys.max)
+    def addBinding(i: Int, t: Term): Store = Store(map.+((i, t)))
+    def substitute(i: Int, t: Term): Store = Store(map.-(i).+((i, t)))
+    def getTerm(i: Int): Term = map.get(i).get
+  }
 
-  case class TypeStore(l: Map[Int, Type]) {}
+  case class TypeStore(map: Map[Int, Type]) {
+    def addBinding(i: Int, ty: Type): TypeStore = TypeStore(map.+((i, ty)))
+    def getType(i: Int): Type = map.get(i).get
+  }
 
   case class Context(l: List[(String, Binding)]) {
     def pickFreshName(s: String): (Context, String) =
@@ -70,7 +82,8 @@ object UnitRef {
 
     def getTypeFromContext(fi: Info, i: Int): Type = getBinding(i) match {
       case VarBind(tyT: Type) => tyT
-      case _                  => error(fi, s"Wrong kind of binding for variable ${index2Name(i)}")
+      case _ =>
+        error(fi, s"Wrong kind of binding for variable ${index2Name(i)}")
     }
 
     def isNameBound(x: String): Boolean = l.exists(_._1 == x)
@@ -89,13 +102,13 @@ object UnitRef {
 
   def applyAll(t: Term, f: Term => Term): Term = {
     t match {
-      case TmVar(fi, x, n)       => TmVar(fi, x, n)
-      case TmAbs(fi, x, ty, t1)  => TmAbs(fi, x, ty, f(t1))
-      case TmApp(fi, t1, t2)     => TmApp(fi, f(t1), f(t2))
-      case TmTrue(_)             => t
-      case TmFalse(_)            => t
-      case TmIf(fi, t1, t2, t3)  => TmIf(fi, f(t1), f(t2), f(t3))
-      case TmUnit(_)             => t
+      case TmVar(fi, x, n)      => TmVar(fi, x, n)
+      case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, f(t1))
+      case TmApp(fi, t1, t2)    => TmApp(fi, f(t1), f(t2))
+      case TmTrue(_)            => t
+      case TmFalse(_)           => t
+      case TmIf(fi, t1, t2, t3) => TmIf(fi, f(t1), f(t2), f(t3))
+      case TmUnit(_)            => t
     }
   }
 
@@ -125,11 +138,11 @@ object UnitRef {
     termShift(-1, termSubst(0, termShift(1, s), t))
 
   def isVal(t: Term): Boolean = t match {
-    case TmAbs(_, _, _, _)                              => true
-    case TmTrue(_)                                      => true
-    case TmFalse(_)                                     => true
-    case TmUnit(_)                                      => true
-    case _                                              => false
+    case TmAbs(_, _, _, _) => true
+    case TmTrue(_)         => true
+    case TmFalse(_)        => true
+    case TmUnit(_)         => true
+    case _                 => false
   }
 
   def eval1(info: Info, store: Store, t: Term): (Store, Term) = t match {
@@ -141,9 +154,34 @@ object UnitRef {
     case TmApp(fi, t1, t2) =>
       val (storePrime, t1prime) = eval1(fi, store, t1)
       (storePrime, TmApp(fi, t1prime, t2))
+    case TmRef(fi, v1) if isVal(v1) => {
+      val loc = store.unboundedLocation(info)
+      (store.addBinding(loc.index, v1), loc)
+    }
+    case TmRef(fi, t1) => {
+      val (storePrime, t1prime) = eval1(fi, store, t1)
+      (storePrime, TmRef(fi, t1prime))
+    }
+    case TmDeRef(fi, TmLocation(_, i)) => {
+      val v = store.getTerm(i)
+      (store, v)
+    }
+    case TmDeRef(fi, t1) => {
+      val (storePrime, t1prime) = eval1(fi, store, t1)
+      (storePrime, TmDeRef(fi, t1prime))
+    }
+    case TmAssign(fi, TmLocation(_, i), v2) if isVal(v2) =>
+      (store.substitute(i, v2), TmUnit(info))
+    case TmAssign(fi, t1, t2) =>
+      val (storePrime, t1prime) = eval1(fi, store, t1)
+      (storePrime, TmAssign(fi, t1prime, t2))
+    case TmAssign(fi, t1, t2) =>
+      val (storePrime, t2prime) = eval1(fi, store, t2)
+      (storePrime, TmAssign(fi, t1, t2prime))
     case TmIf(_, TmTrue(_), t1, _)  => (store, t1)
     case TmIf(_, TmFalse(_), _, t2) => (store, t2)
-    case TmIf(fi, t1, t2, t3)       => (store, TmIf(fi, eval1(info, store, t1)._2, t2, t3))
+    case TmIf(fi, t1, t2, t3) =>
+      (store, TmIf(fi, eval1(info, store, t1)._2, t2, t3))
     case _ => throw NoRuleAppliesException(t)
   }
 
@@ -155,15 +193,15 @@ object UnitRef {
       case _: NoRuleAppliesException => t
     }
 
-  def typeOf(ctx: Context, store: Store, t: Term): Type = t match {
+  def typeOf(ctx: Context, typeStore: TypeStore, t: Term): Type = t match {
     case TmVar(fi, i, _) => ctx.getTypeFromContext(fi, i)
     case TmAbs(_, x, tyT1, t2) =>
       val ctx_ = ctx.addBinding(x, VarBind(tyT1))
-      val tyT2 = typeOf(ctx_, store, t2)
+      val tyT2 = typeOf(ctx_, typeStore, t2)
       TyArr(tyT1, tyT2)
     case TmApp(fi, t1, t2) =>
-      val tyT1 = typeOf(ctx, store, t1)
-      val tyT2 = typeOf(ctx, store, t2)
+      val tyT1 = typeOf(ctx, typeStore, t1)
+      val tyT2 = typeOf(ctx, typeStore, t2)
       tyT1 match {
         case TyArr(tyT11, tyT12) if tyT2 == tyT11 => tyT12
         case TyArr(_, _)                          => throw NoRuleAppliesException(t)
@@ -171,26 +209,41 @@ object UnitRef {
       }
     case TmTrue(_)  => TyBool
     case TmFalse(_) => TyBool
-    case TmIf(fi, t1, t2, t3) if typeOf(ctx, store, t1) == TyBool =>
-      if (typeOf(ctx, store, t2) == typeOf(ctx, store, t3)) typeOf(ctx, store, t2)
+    case TmIf(_, t1, t2, t3) if typeOf(ctx, typeStore, t1) == TyBool =>
+      if (typeOf(ctx, typeStore, t2) == typeOf(ctx, typeStore, t3))
+        typeOf(ctx, typeStore, t2)
       else throw NoRuleAppliesException(t)
-    case TmIf(fi, _, _, _) => throw NoRuleAppliesException(t)
-    case TmUnit(_)         => TyUnit
+    case TmIf(_, _, _, _) => throw NoRuleAppliesException(t)
+    case TmUnit(_)        => TyUnit
+    case TmLocation(_, i) => TyRef(typeStore.getType(i))
+    case TmRef(_, t1)     => TyRef(typeOf(ctx, typeStore, t1))
+    case TmDeRef(_, t1) =>
+      typeOf(ctx, typeStore, t1) match {
+        case TyRef(tyT11) => tyT11
+        case _            => throw NoRuleAppliesException(t)
+      }
+    case TmAssign(_, t1, t2) =>
+      (typeOf(ctx, typeStore, t1), typeOf(ctx, typeStore, t2)) match {
+        case (TyRef(tyT11), tyT11prime) if tyT11 == tyT11prime => TyUnit
+        case _                                                 => throw NoRuleAppliesException(t)
+      }
   }
-
 
   def refine(t: ExternalTerm): Term = {
-    t match {
-      case TmSeq(fi, t1, t2) => TmApp(fi, TmAbs(fi, "x", TyUnit, refine(t1)), refine(t2))
-      case t1: Term => t1
-    }
+    case TmSeq(fi, t1, t2) =>
+      TmApp(fi, TmAbs(fi, "x", TyUnit, refine(t1)), refine(t2))
+    case t1: Term => t1
   }
 
-  def externalEval(info: Info, store: Store, externalTerm: ExternalTerm): Term = {
+  def externalEval(info: Info,
+                   store: Store,
+                   externalTerm: ExternalTerm): Term = {
     eval(info, store, refine(externalTerm))
   }
 
-  def externalTypeOf(ctx: Context, externalTerm: ExternalTerm): Type = {
-    ctx.typeOf(refine(externalTerm))
+  def externalTypeOf(ctx: Context,
+                     typeStore: TypeStore,
+                     externalTerm: ExternalTerm): Type = {
+    typeOf(ctx, typeStore, refine(externalTerm))
   }
 }
