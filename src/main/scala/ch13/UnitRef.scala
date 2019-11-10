@@ -190,7 +190,7 @@ object UnitRef {
     eval(info, store, refine(externalTerm))
   }
 
-  def externalTypeOf(ctx: Context, externalTerm: ExternalTerm): Type = {
-    ctx.typeOf(refine(externalTerm))
+  def externalTypeOf(ctx: Context, store: Store, externalTerm: ExternalTerm): Type = {
+    typeOf(ctx, store, refine(externalTerm))
   }
 }
