@@ -132,50 +132,53 @@ object UnitRef {
     case _                                              => false
   }
 
-  def eval1(info: Info, store: Store, t: Term): (Store, Term) = t match {
+  def eval1(info: Info, store: Store, t: Term): Option[(Store, Term)] = t match {
     case TmApp(_, TmAbs(_, _, _, t12), v2) if isVal(v2) =>
-      (store, termSubstTop(v2, t12))
-    case TmApp(fi, v1, t2) if isVal(v1) =>
-      val (storePrime, t2prime) = eval1(fi, store, t2)
-      (storePrime, TmApp(fi, v1, t2prime))
-    case TmApp(fi, t1, t2) =>
-      val (storePrime, t1prime) = eval1(fi, store, t1)
-      (storePrime, TmApp(fi, t1prime, t2))
-    case TmIf(_, TmTrue(_), t1, _)  => (store, t1)
-    case TmIf(_, TmFalse(_), _, t2) => (store, t2)
-    case TmIf(fi, t1, t2, t3)       => (store, TmIf(fi, eval1(info, store, t1)._2, t2, t3))
-    case _ => throw NoRuleAppliesException(t)
+      Some((store, termSubstTop(v2, t12)))
+    case TmApp(fi, v1, t2) if isVal(v1) => for {
+      (storePrime, t2prime) <- eval1(fi, store, t2)
+    } yield (storePrime, TmApp(fi, v1, t2prime))
+    case TmApp(fi, t1, t2) => for {
+      (storePrime, t1prime) <- eval1(fi, store, t1)
+    } yield (storePrime, TmApp(fi, t1prime, t2))
+    case TmIf(_, TmTrue(_), t1, _)  => Some((store, t1))
+    case TmIf(_, TmFalse(_), _, t2) => Some((store, t2))
+    case TmIf(fi, t1, t2, t3)       => for {
+      (storePrime, t1Prime) <- eval1(info, store, t1)
+    } yield (storePrime, TmIf(fi, t1Prime, t2, t3))
+    case _ => None
   }
 
   def eval(info: Info, store: Store, t: Term): Term =
-    try {
-      val (storePrime, t1) = eval1(info, store, t)
-      eval(info, storePrime, t1)
-    } catch {
-      case _: NoRuleAppliesException => t
+    eval1(info, store, t) match {
+      case Some((storePrime, tPrime)) => eval(info, storePrime, tPrime)
+      case None => t
     }
 
-  def typeOf(ctx: Context, store: Store, t: Term): Type = t match {
-    case TmVar(fi, i, _) => ctx.getTypeFromContext(fi, i)
+  def typeOf(ctx: Context, store: Store, t: Term): Option[Type] = t match {
+    case TmVar(fi, i, _) => Some(ctx.getTypeFromContext(fi, i))
     case TmAbs(_, x, tyT1, t2) =>
       val ctx_ = ctx.addBinding(x, VarBind(tyT1))
-      val tyT2 = typeOf(ctx_, store, t2)
-      TyArr(tyT1, tyT2)
-    case TmApp(fi, t1, t2) =>
-      val tyT1 = typeOf(ctx, store, t1)
-      val tyT2 = typeOf(ctx, store, t2)
-      tyT1 match {
-        case TyArr(tyT11, tyT12) if tyT2 == tyT11 => tyT12
-        case TyArr(_, _)                          => throw NoRuleAppliesException(t)
-        case _                                    => throw NoRuleAppliesException(t)
+      for {
+        tyT2 <- typeOf(ctx_, store, t2)
+      } yield TyArr(tyT1, tyT2)
+    case TmApp(fi, t1, t2) => for {
+      tyT1 <- typeOf(ctx, store, t1)
+      tyT2 <- typeOf(ctx, store, t2)
+      tyT12 <- tyT1 match {
+        case TyArr(tyT11, tyT12) if tyT2 == tyT11 => Some(tyT12)
+        case _                                    => None
       }
-    case TmTrue(_)  => TyBool
-    case TmFalse(_) => TyBool
-    case TmIf(fi, t1, t2, t3) if typeOf(ctx, store, t1) == TyBool =>
-      if (typeOf(ctx, store, t2) == typeOf(ctx, store, t3)) typeOf(ctx, store, t2)
-      else throw NoRuleAppliesException(t)
-    case TmIf(fi, _, _, _) => throw NoRuleAppliesException(t)
-    case TmUnit(_)         => TyUnit
+    } yield tyT12
+    case TmTrue(_)  => Some(TyBool)
+    case TmFalse(_) => Some(TyBool)
+    case TmIf(fi, t1, t2, t3) if typeOf(ctx, store, t1).contains(TyBool) => for {
+      tyT2 <- typeOf(ctx, store, t2)
+      tyT3 <- typeOf(ctx, store, t3)
+      tyT <- if(tyT2==tyT3) Some(tyT2) else None
+    } yield tyT
+    case TmIf(fi, _, _, _) => None
+    case TmUnit(_)         => Some(TyUnit)
   }
 
 
@@ -190,7 +193,7 @@ object UnitRef {
     eval(info, store, refine(externalTerm))
   }
 
-  def externalTypeOf(ctx: Context, store: Store, externalTerm: ExternalTerm): Type = {
+  def externalTypeOf(ctx: Context, store: Store, externalTerm: ExternalTerm): Option[Type] = {
     typeOf(ctx, store, refine(externalTerm))
   }
 }
