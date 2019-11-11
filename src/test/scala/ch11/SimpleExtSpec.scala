@@ -5,15 +5,15 @@ import org.scalatest.{DiagrammedAssertions, FlatSpec}
 class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
   import ch11.SimpleExt._
 
-  def vari(index: Int): Term = TmVar(Info0, index, index)
+  def vari(index: Int): Term = TmVar(Info(), index, index)
   def abs(xs0: (String, Type)*)(t: Term): Term = {
     val xs = xs0.reverse
-    xs.tail.foldLeft(TmAbs(Info0, xs.head._1, xs.head._2, t))(
-      (t1, x) => TmAbs(Info0, x._1, x._2, t1)
+    xs.tail.foldLeft(TmAbs(Info(), xs.head._1, xs.head._2, t))(
+      (t1, x) => TmAbs(Info(), x._1, x._2, t1)
     )
   }
   def app(ts: Term*): Term = {
-    ts.tail.foldLeft(ts.head)((t1, t2) => TmApp(Info0, t1, t2))
+    ts.tail.foldLeft(ts.head)((t1, t2) => TmApp(Info(), t1, t2))
   }
   def eq(t1: Term, t2: Term): Boolean = {
     (ev(t1), ev(t2)) match {
@@ -34,15 +34,15 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
       case _                                  => false
     }
   }
-  def ev(t: Term): Term = eval(Info0, Context(), t)
-  def ty(t: Term): Type = Context().typeOf(t)
+  def ev(t: Term): Term = eval(Info(), Context(), t)
+  def ty(t: Term): Type = typeOf(Context(), t).get
 
   "SimpleExt" should "contain typeless Lambda eval" in {
     // FIXME: absTypeLess can be defined using abs
     def absTypeLess(xs0: String*)(t: Term): Term = {
       val xs = xs0.map(x => (x, TyBool)).reverse
-      xs.tail.foldLeft(TmAbs(Info0, xs.head._1, xs.head._2, t))(
-        (t1, x) => TmAbs(Info0, x._1, x._2, t1)
+      xs.tail.foldLeft(TmAbs(Info(), xs.head._1, xs.head._2, t))(
+        (t1, x) => TmAbs(Info(), x._1, x._2, t1)
       )
     }
     val id = absTypeLess("x")(vari(0))
@@ -65,49 +65,66 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
   }
 
   it should "support evaluating boolean" in {
-    val unit = TmUnit(Info0)
-    val ts = Seq(TmTrue(Info0), TmFalse(Info0))
+    val unit = TmUnit(Info())
+    val ts = Seq(TmTrue(Info()), TmFalse(Info()))
     ts.foreach { t =>
-      assert(eq(t, TmIf(Info0, TmTrue(Info0), t, unit)))
-      assert(eq(t, TmIf(Info0, TmFalse(Info0), unit, t)))
+      assert(eq(t, TmIf(Info(), TmTrue(Info()), t, unit)))
+      assert(eq(t, TmIf(Info(), TmFalse(Info()), unit, t)))
       assert(
         eq(
           t,
-          TmIf(Info0, TmIf(Info0, TmTrue(Info0), TmTrue(Info0), unit), t, unit)
+          TmIf(
+            Info(),
+            TmIf(Info(), TmTrue(Info()), TmTrue(Info()), unit),
+            t,
+            unit
+          )
         )
       )
     }
   }
 
-  it should "support evaluating pair" in {
-    val unit = TmUnit(Info0)
-    val ts = Seq(TmTrue(Info0), TmFalse(Info0))
+  it should "support evaluating product" in {
+    val unit = TmUnit(Info())
+    val ts = Seq(TmTrue(Info()), TmFalse(Info()))
     ts.foreach { t =>
-      assert(eq(t, TmFirst(Info0, TmProduct(Info0, t, unit))))
-      assert(eq(t, TmSecond(Info0, TmProduct(Info0, unit, t))))
+      assert(eq(t, TmFirst(Info(), TmProduct(Info(), t, unit))))
+      assert(eq(t, TmSecond(Info(), TmProduct(Info(), unit, t))))
     }
   }
 
   it should "support typing" in {
-    val ts = Seq(TmTrue(Info0), TmFalse(Info0), TmUnit(Info0))
-    assert(TyBool === ty(TmTrue(Info0)))
-    assert(TyBool === ty(TmFalse(Info0)))
-    assert(TyUnit === ty(TmUnit(Info0)))
+    val ts = Seq(TmTrue(Info()), TmFalse(Info()), TmUnit(Info()))
+    assert(TyBool === ty(TmTrue(Info())))
+    assert(TyBool === ty(TmFalse(Info())))
+    assert(TyUnit === ty(TmUnit(Info())))
 
     ts.foreach { t1 =>
-      val  ty1 = ty(t1)
-      assert(ty1 === ty(TmIf(Info0, TmTrue(Info0), t1, t1)))
+      val tyT1 = ty(t1)
+      assert(tyT1 === ty(TmIf(Info(), TmTrue(Info()), t1, t1)))
       ts.foreach { t2 =>
-        val  ty2 = ty(t2)
+        val tyT2 = ty(t2)
 
-        val f = TmAbs(Info0, "x", ty1, t2)
-        assert(TyArr(ty1, ty2) === ty(f))
-        assert(ty2 === ty(TmApp(Info0, f, t1)))
+        val f = TmAbs(Info(), "x", tyT1, t2)
+        assert(TyArr(tyT1, tyT2) === ty(f))
+        assert(tyT2 === ty(TmApp(Info(), f, t1)))
 
-        val p = TmProduct(Info0, t1, t2)
-        assert(TyProduct(ty1, ty2) === ty(p))
-        assert(ty1 === ty(TmFirst(Info0, p)))
-        assert(ty2 === ty(TmSecond(Info0, p)))
+        val p = TmProduct(Info(), t1, t2)
+        assert(TyProduct(tyT1, tyT2) === ty(p))
+        assert(tyT1 === ty(TmFirst(Info(), p)))
+        assert(tyT2 === ty(TmSecond(Info(), p)))
+
+        val sl = TmInl(Info(), t1, tyT2)
+        val sr = TmInr(Info(), tyT1, t2)
+        assert(TySum(tyT1, tyT2) == ty(sl))
+        assert(TySum(tyT1, tyT2) == ty(sr))
+
+        if (tyT1 == tyT2) {
+          val cl = TmCase(Info(), sl, "x", t1, "y", t2)
+          val cr = TmCase(Info(), sr, "x", t1, "y", t2)
+          assert(tyT1 == ty(cl))
+          assert(tyT2 == ty(cr))
+        }
       }
     }
   }
