@@ -10,7 +10,7 @@ object SimpleExt {
   sealed trait Term
   final case class TmVar(info: Info, index: Int, contextLength: Int)
       extends Term
-  final case class TmAbs(info: Info, v: String, ty: Type, t: Term) extends Term
+  final case class TmAbs(info: Info, v: String, tyT: Type, t: Term) extends Term
   final case class TmApp(info: Info, t1: Term, t2: Term) extends Term
   final case class TmTrue(info: Info) extends Term
   final case class TmFalse(info: Info) extends Term
@@ -19,8 +19,8 @@ object SimpleExt {
   final case class TmProduct(info: Info, t1: Term, t2: Term) extends Term
   final case class TmFirst(info: Info, t: Term) extends Term
   final case class TmSecond(info: Info, t: Term) extends Term
-  final case class TmInl(info: Info, t1: Term, ty2: Type) extends Term
-  final case class TmInr(info: Info, ty1: Type, t2: Term) extends Term
+  final case class TmInl(info: Info, t1: Term, tyT2: Type) extends Term
+  final case class TmInr(info: Info, tyT1: Type, t2: Term) extends Term
   final case class TmCase(info: Info,
                           t: Term,
                           xl: String,
@@ -30,7 +30,7 @@ object SimpleExt {
       extends Term
 
   sealed trait Type
-  final case class TyArr(ty1: Type, ty2: Type) extends Type
+  final case class TyArr(tyT1: Type, tyT2: Type) extends Type
   case object TyBool extends Type
   case object TyUnit extends Type
   case class TyProduct(tyT1: Type, tyT2: Type) extends Type
@@ -38,7 +38,7 @@ object SimpleExt {
 
   sealed trait Binding
   case object NameBind extends Binding
-  final case class VarBind(ty: Type) extends Binding
+  final case class VarBind(tyT: Type) extends Binding
   case class Context(l: List[(String, Binding)]) {
     def pickFreshName(s: String): (Context, String) =
       if (isNameBound(s)) pickFreshName(s + "'")
@@ -68,7 +68,7 @@ object SimpleExt {
   def applyAll(t: Term, f: Term => Term): Term = {
     t match {
       case TmVar(fi, x, n)       => TmVar(fi, x, n)
-      case TmAbs(fi, x, ty, t1)  => TmAbs(fi, x, ty, f(t1))
+      case TmAbs(fi, x, tyT, t1) => TmAbs(fi, x, tyT, f(t1))
       case TmApp(fi, t1, t2)     => TmApp(fi, f(t1), f(t2))
       case TmTrue(_)             => t
       case TmFalse(_)            => t
@@ -77,8 +77,8 @@ object SimpleExt {
       case TmProduct(fi, t1, t2) => TmProduct(fi, f(t1), f(t2))
       case TmFirst(fi, t1)       => TmFirst(fi, f(t1))
       case TmSecond(fi, t1)      => TmSecond(fi, f(t1))
-      case TmInl(fi, t1, ty2)    => TmInl(fi, f(t1), ty2)
-      case TmInr(fi, ty1, t2)    => TmInr(fi, ty1, f(t2))
+      case TmInl(fi, t1, tyT2)   => TmInl(fi, f(t1), tyT2)
+      case TmInr(fi, tyT1, t2)   => TmInr(fi, tyT1, f(t2))
       case TmCase(fi, t0, x1, t1, x2, t2) =>
         TmCase(fi, f(t0), x1, f(t1), x2, f(t2))
     }
@@ -88,8 +88,8 @@ object SimpleExt {
     def walk(c: Int, t: Term): Term = t match {
       case TmVar(fi, x, n) =>
         if (x >= c) TmVar(fi, x + d, n + d) else TmVar(fi, x, n + d)
-      case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
-      case t                    => applyAll(t, walk(c, _))
+      case TmAbs(fi, x, tyT, t1) => TmAbs(fi, x, tyT, walk(c + 1, t1))
+      case t                     => applyAll(t, walk(c, _))
     }
     walk(0, t)
   }
@@ -99,8 +99,8 @@ object SimpleExt {
       t match {
         case TmVar(fi, x, n) =>
           if (x == j + c) termShift(c, s) else TmVar(fi, x, n)
-        case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
-        case _                    => applyAll(t, walk(c, _))
+        case TmAbs(fi, x, tyT, t1) => TmAbs(fi, x, tyT, walk(c + 1, t1))
+        case _                     => applyAll(t, walk(c, _))
       }
     }
     walk(0, t)
@@ -166,14 +166,14 @@ object SimpleExt {
       for {
         t0prime <- eval1(info, ctx, t0)
       } yield TmCase(fi, t0prime, x1, t1, x2, t2)
-    case TmInl(fi, t1, ty2) =>
+    case TmInl(fi, t1, tyT2) =>
       for {
         t1prime <- eval1(info, ctx, t1)
-      } yield TmInl(fi, t1prime, ty2)
-    case TmInr(fi, ty1, t2) =>
+      } yield TmInl(fi, t1prime, tyT2)
+    case TmInr(fi, tyT1, t2) =>
       for {
         t2prime <- eval1(info, ctx, t2)
-      } yield TmInr(fi, ty1, t2prime)
+      } yield TmInr(fi, tyT1, t2prime)
     case _ => None
   }
 
@@ -216,8 +216,8 @@ object SimpleExt {
       for {
         tyT1 <- typeOf(ctx, t1)
         tyT11 <- tyT1 match {
-          case TyProduct(ty11, _) => Some(ty11)
-          case _                  => None
+          case TyProduct(tyT11, _) => Some(tyT11)
+          case _                   => None
         }
       } yield tyT11
     case TmSecond(_, t1) =>
@@ -238,10 +238,10 @@ object SimpleExt {
       } yield TySum(tyT1, tyT2)
     case TmCase(_, t0, x1, t1, x2, t2) =>
       typeOf(ctx, t0) match {
-        case Some(TySum(ty1, ty2)) =>
+        case Some(TySum(tyT1, tyT2)) =>
           for {
-            tyT1 <- typeOf(ctx.addBinding(x1, VarBind(ty1)), t1)
-            tyT2 <- typeOf(ctx.addBinding(x2, VarBind(ty2)), t2)
+            tyT1 <- typeOf(ctx.addBinding(x1, VarBind(tyT1)), t1)
+            tyT2 <- typeOf(ctx.addBinding(x2, VarBind(tyT2)), t2)
             tyT <- if (tyT1 == tyT2) Some(tyT1) else None
           } yield tyT
         case _ => None
