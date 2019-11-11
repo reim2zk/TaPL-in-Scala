@@ -35,7 +35,7 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
     }
   }
   def ev(t: Term): Term = eval(Info0, Context(), t)
-  def ty(t: Term): Type = Context().typeOf(t)
+  def ty(t: Term): Type = typeOf(Context(), t).get
 
   "SimpleExt" should "contain typeless Lambda eval" in {
     // FIXME: absTypeLess can be defined using abs
@@ -95,10 +95,10 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
     assert(TyUnit === ty(TmUnit(Info0)))
 
     ts.foreach { t1 =>
-      val  ty1 = ty(t1)
+      val ty1 = ty(t1)
       assert(ty1 === ty(TmIf(Info0, TmTrue(Info0), t1, t1)))
       ts.foreach { t2 =>
-        val  ty2 = ty(t2)
+        val ty2 = ty(t2)
 
         val f = TmAbs(Info0, "x", ty1, t2)
         assert(TyArr(ty1, ty2) === ty(f))

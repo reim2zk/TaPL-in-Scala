@@ -2,51 +2,32 @@ package ch13
 
 object UnitRef {
   sealed trait Info
-
-  case object Info0 extends Info
-
-  sealed trait ExternalTerm
-
-  final case class TmSeq(info: Info, t1: Term, t2: Term) extends ExternalTerm
-
-  sealed trait Term extends ExternalTerm
+  object Info {
+    case object Info0 extends Info
+    def apply(): Info = Info0
+  }
+  sealed trait ITerm
 
   final case class TmVar(info: Info, index: Int, contextLength: Int)
-      extends Term
-
-  final case class TmAbs(info: Info, v: String, ty: Type, t: Term) extends Term
-
-  final case class TmApp(info: Info, t1: Term, t2: Term) extends Term
-
-  final case class TmRef(info: Info, t: Term) extends Term
-
-  final case class TmDeRef(info: Info, t: Term) extends Term
-
-  final case class TmAssign(info: Info, t1: Term, t2: Term) extends Term
-
-  final case class TmLocation(info: Info, index: Int) extends Term
-
-  final case class TmTrue(info: Info) extends Term
-
-  final case class TmFalse(info: Info) extends Term
-
-  final case class TmIf(info: Info, t1: Term, t2: Term, t3: Term) extends Term
-
-  final case class TmUnit(info: Info) extends Term
+      extends ITerm
+  final case class TmAbs(info: Info, v: String, ty: Type, t: ITerm)
+      extends ITerm
+  final case class TmApp(info: Info, t1: ITerm, t2: ITerm) extends ITerm
+  final case class TmRef(info: Info, t: ITerm) extends ITerm
+  final case class TmDeRef(info: Info, t: ITerm) extends ITerm
+  final case class TmAssign(info: Info, t1: ITerm, t2: ITerm) extends ITerm
+  final case class TmLocation(info: Info, index: Int) extends ITerm
+  final case class TmTrue(info: Info) extends ITerm
+  final case class TmFalse(info: Info) extends ITerm
+  final case class TmIf(info: Info, t1: ITerm, t2: ITerm, t3: ITerm)
+      extends ITerm
+  final case class TmUnit(info: Info) extends ITerm
 
   sealed trait Type
-
   final case class TyArr(ty1: Type, ty2: Type) extends Type
-
   case class TyRef(tyT: Type) extends Type
-
   case object TyBool extends Type
-
   case object TyUnit extends Type
-
-  case class TyProduct(tyT1: Type, tyT2: Type) extends Type
-
-  case class TySum(tyT1: Type, tyT2: Type) extends Type
 
   sealed trait Binding
 
@@ -54,14 +35,17 @@ object UnitRef {
 
   final case class VarBind(ty: Type) extends Binding
 
-  final case class NoRuleAppliesException(term: Term) extends RuntimeException
+  final case class NoRuleAppliesException(term: ITerm) extends RuntimeException
 
-  case class Store(map: Map[Int, Term]) {
+  case class Store(map: Map[Int, ITerm]) {
     def unboundedLocation(info: Info): TmLocation =
       TmLocation(info, map.keys.max)
-    def addBinding(i: Int, t: Term): Store = Store(map.+((i, t)))
-    def substitute(i: Int, t: Term): Store = Store(map.-(i).+((i, t)))
-    def getTerm(i: Int): Term = map.get(i).get
+    def addBinding(i: Int, t: ITerm): Store = Store(map.+((i, t)))
+    def substitute(i: Int, t: ITerm): Store = Store(map.-(i).+((i, t)))
+    def getTerm(i: Int): ITerm = map.get(i).get
+  }
+  object Store {
+    def apply(): Store = Store(Map.empty)
   }
 
   case class TypeStore(map: Map[Int, Type]) {
@@ -100,20 +84,24 @@ object UnitRef {
     def apply(): Context = Context(List.empty)
   }
 
-  def applyAll(t: Term, f: Term => Term): Term = {
+  def applyAll(t: ITerm, f: ITerm => ITerm): ITerm = {
     t match {
-      case TmVar(fi, x, n)      => TmVar(fi, x, n)
-      case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, f(t1))
-      case TmApp(fi, t1, t2)    => TmApp(fi, f(t1), f(t2))
-      case TmTrue(_)            => t
-      case TmFalse(_)           => t
-      case TmIf(fi, t1, t2, t3) => TmIf(fi, f(t1), f(t2), f(t3))
-      case TmUnit(_)            => t
+      case TmVar(fi, x, n)         => TmVar(fi, x, n)
+      case TmAbs(fi, x, ty, t1)    => TmAbs(fi, x, ty, f(t1))
+      case TmApp(fi, t1, t2)       => TmApp(fi, f(t1), f(t2))
+      case TmRef(info, t1)         => TmRef(info, f(t1))
+      case TmDeRef(info, t2)       => TmDeRef(info, f(t2))
+      case TmAssign(info, t1, t2)  => TmAssign(info, f(t1), f(t2))
+      case TmLocation(info, index) => TmLocation(info, index)
+      case TmTrue(_)               => t
+      case TmFalse(_)              => t
+      case TmIf(fi, t1, t2, t3)    => TmIf(fi, f(t1), f(t2), f(t3))
+      case TmUnit(_)               => t
     }
   }
 
-  def termShift(d: Int, t: Term): Term = {
-    def walk(c: Int, t: Term): Term = t match {
+  def termShift(d: Int, t: ITerm): ITerm = {
+    def walk(c: Int, t: ITerm): ITerm = t match {
       case TmVar(fi, x, n) =>
         if (x >= c) TmVar(fi, x + d, n + d) else TmVar(fi, x, n + d)
       case TmAbs(fi, x, ty, t1) => TmAbs(fi, x, ty, walk(c + 1, t1))
@@ -122,8 +110,8 @@ object UnitRef {
     walk(0, t)
   }
 
-  def termSubst(j: Int, s: Term, t: Term): Term = {
-    def walk(c: Int, t: Term): Term = {
+  def termSubst(j: Int, s: ITerm, t: ITerm): ITerm = {
+    def walk(c: Int, t: ITerm): ITerm = {
       t match {
         case TmVar(fi, x, n) =>
           if (x == j + c) termShift(c, s) else TmVar(fi, x, n)
@@ -134,10 +122,10 @@ object UnitRef {
     walk(0, t)
   }
 
-  def termSubstTop(s: Term, t: Term): Term =
+  def termSubstTop(s: ITerm, t: ITerm): ITerm =
     termShift(-1, termSubst(0, termShift(1, s), t))
 
-  def isVal(t: Term): Boolean = t match {
+  def isVal(t: ITerm): Boolean = t match {
     case TmAbs(_, _, _, _) => true
     case TmTrue(_)         => true
     case TmFalse(_)        => true
@@ -145,7 +133,7 @@ object UnitRef {
     case _                 => false
   }
 
-  def eval1(info: Info, store: Store, t: Term): Option[(Store, Term)] =
+  def eval1(info: Info, store: Store, t: ITerm): Option[(Store, ITerm)] =
     t match {
       case TmApp(_, TmAbs(_, _, _, t12), v2) if isVal(v2) =>
         Some((store, termSubstTop(v2, t12)))
@@ -157,6 +145,10 @@ object UnitRef {
         for {
           (storePrime, t1prime) <- eval1(fi, store, t1)
         } yield (storePrime, TmApp(fi, t1prime, t2))
+      case TmRef(info, t1)            => ???
+      case TmDeRef(info, t2)          => ???
+      case TmAssign(info, t1, t2)     => ???
+      case TmLocation(info, index)    => ???
       case TmIf(_, TmTrue(_), t1, _)  => Some((store, t1))
       case TmIf(_, TmFalse(_), _, t2) => Some((store, t2))
       case TmIf(fi, t1, t2, t3) =>
@@ -166,20 +158,20 @@ object UnitRef {
       case _ => None
     }
 
-  def eval(info: Info, store: Store, t: Term): Term =
+  def eval(info: Info, store: Store, t: ITerm): ITerm =
     eval1(info, store, t) match {
       case Some((storePrime, tPrime)) => eval(info, storePrime, tPrime)
       case None                       => t
     }
 
-  def typeOf(ctx: Context, store: Store, t: Term): Option[Type] = t match {
+  def typeOf(ctx: Context, store: Store, t: ITerm): Option[Type] = t match {
     case TmVar(fi, i, _) => Some(ctx.getTypeFromContext(fi, i))
     case TmAbs(_, x, tyT1, t2) =>
       val ctx_ = ctx.addBinding(x, VarBind(tyT1))
       for {
         tyT2 <- typeOf(ctx_, store, t2)
       } yield TyArr(tyT1, tyT2)
-    case TmApp(fi, t1, t2) =>
+    case TmApp(_, t1, t2) =>
       for {
         tyT1 <- typeOf(ctx, store, t1)
         tyT2 <- typeOf(ctx, store, t2)
@@ -188,35 +180,40 @@ object UnitRef {
           case _                                    => None
         }
       } yield tyT12
-    case TmTrue(_)  => Some(TyBool)
-    case TmFalse(_) => Some(TyBool)
-    case TmIf(fi, t1, t2, t3) if typeOf(ctx, store, t1).contains(TyBool) =>
+    case TmRef(info, t1)         => ???
+    case TmDeRef(info, t2)       => ???
+    case TmAssign(info, t1, t2)  => ???
+    case TmLocation(info, index) => ???
+    case TmTrue(_)               => Some(TyBool)
+    case TmFalse(_)              => Some(TyBool)
+    case TmIf(_, t1, t2, t3) if typeOf(ctx, store, t1).contains(TyBool) =>
       for {
         tyT2 <- typeOf(ctx, store, t2)
         tyT3 <- typeOf(ctx, store, t3)
         tyT <- if (tyT2 == tyT3) Some(tyT2) else None
       } yield tyT
-    case TmIf(fi, _, _, _) => None
-    case TmUnit(_)         => Some(TyUnit)
+    case TmIf(_, _, _, _) => None
+    case TmUnit(_)        => Some(TyUnit)
   }
 
-  def refine(t: ExternalTerm): Term = {
-    t match {
-      case TmSeq(fi, t1, t2) =>
-        TmApp(fi, TmAbs(fi, "x", TyUnit, refine(t1)), refine(t2))
-      case t1: Term => t1
+  def equalTerm(t1: ITerm, t2: ITerm): Boolean = {
+    (t1, t2) match {
+      case (TmVar(_, i1, _), TmVar(_, i2, _)) => i1 == i2
+      case (TmAbs(_, v1, _, t1), TmAbs(_, v2, _, t2)) =>
+        v1 == v2 && equalTerm(t1, t2)
+      case (TmApp(_, t11, t12), TmApp(_, t21, t22)) =>
+        equalTerm(t11, t21) && equalTerm(t12, t22)
+      case (TmRef(_, t1), TmRef(_, t2))     => equalTerm(t1, t2)
+      case (TmDeRef(_, t1), TmDeRef(_, t2)) => equalTerm(t1, t2)
+      case (TmAssign(_, t1, t2), TmAssign(_, s1, s2)) =>
+        equalTerm(t1, s1) && equalTerm(t2, s2)
+      case (TmLocation(_, i), TmLocation(_, j)) => i == j
+      case (TmTrue(_), TmTrue(_))               => true
+      case (TmFalse(_), TmFalse(_))             => true
+      case (TmIf(_, t11, t12, t13), TmIf(_, t21, t22, t23)) =>
+        equalTerm(t11, t21) && equalTerm(t12, t22) && equalTerm(t13, t23)
+      case (TmUnit(_), TmUnit(_)) => true
+      case _                      => false
     }
-  }
-
-  def externalEval(info: Info,
-                   store: Store,
-                   externalTerm: ExternalTerm): Term = {
-    eval(info, store, refine(externalTerm))
-  }
-
-  def externalTypeOf(ctx: Context,
-                     store: Store,
-                     externalTerm: ExternalTerm): Option[Type] = {
-    typeOf(ctx, store, refine(externalTerm))
   }
 }
