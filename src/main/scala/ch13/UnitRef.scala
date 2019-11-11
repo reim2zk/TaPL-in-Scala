@@ -145,94 +145,67 @@ object UnitRef {
     case _                 => false
   }
 
-  def eval1(info: Info, store: Store, t: Term): (Store, Term) = t match {
-    case TmApp(_, TmAbs(_, _, _, t12), v2) if isVal(v2) =>
-      (store, termSubstTop(v2, t12))
-    case TmApp(fi, v1, t2) if isVal(v1) =>
-      val (storePrime, t2prime) = eval1(fi, store, t2)
-      (storePrime, TmApp(fi, v1, t2prime))
-    case TmApp(fi, t1, t2) =>
-      val (storePrime, t1prime) = eval1(fi, store, t1)
-      (storePrime, TmApp(fi, t1prime, t2))
-    case TmRef(fi, v1) if isVal(v1) => {
-      val loc = store.unboundedLocation(info)
-      (store.addBinding(loc.index, v1), loc)
+  def eval1(info: Info, store: Store, t: Term): Option[(Store, Term)] =
+    t match {
+      case TmApp(_, TmAbs(_, _, _, t12), v2) if isVal(v2) =>
+        Some((store, termSubstTop(v2, t12)))
+      case TmApp(fi, v1, t2) if isVal(v1) =>
+        for {
+          (storePrime, t2prime) <- eval1(fi, store, t2)
+        } yield (storePrime, TmApp(fi, v1, t2prime))
+      case TmApp(fi, t1, t2) =>
+        for {
+          (storePrime, t1prime) <- eval1(fi, store, t1)
+        } yield (storePrime, TmApp(fi, t1prime, t2))
+      case TmIf(_, TmTrue(_), t1, _)  => Some((store, t1))
+      case TmIf(_, TmFalse(_), _, t2) => Some((store, t2))
+      case TmIf(fi, t1, t2, t3) =>
+        for {
+          (storePrime, t1Prime) <- eval1(info, store, t1)
+        } yield (storePrime, TmIf(fi, t1Prime, t2, t3))
+      case _ => None
     }
-    case TmRef(fi, t1) => {
-      val (storePrime, t1prime) = eval1(fi, store, t1)
-      (storePrime, TmRef(fi, t1prime))
-    }
-    case TmDeRef(fi, TmLocation(_, i)) => {
-      val v = store.getTerm(i)
-      (store, v)
-    }
-    case TmDeRef(fi, t1) => {
-      val (storePrime, t1prime) = eval1(fi, store, t1)
-      (storePrime, TmDeRef(fi, t1prime))
-    }
-    case TmAssign(fi, TmLocation(_, i), v2) if isVal(v2) =>
-      (store.substitute(i, v2), TmUnit(info))
-    case TmAssign(fi, t1, t2) =>
-      val (storePrime, t1prime) = eval1(fi, store, t1)
-      (storePrime, TmAssign(fi, t1prime, t2))
-    case TmAssign(fi, t1, t2) =>
-      val (storePrime, t2prime) = eval1(fi, store, t2)
-      (storePrime, TmAssign(fi, t1, t2prime))
-    case TmIf(_, TmTrue(_), t1, _)  => (store, t1)
-    case TmIf(_, TmFalse(_), _, t2) => (store, t2)
-    case TmIf(fi, t1, t2, t3) =>
-      (store, TmIf(fi, eval1(info, store, t1)._2, t2, t3))
-    case _ => throw NoRuleAppliesException(t)
-  }
 
   def eval(info: Info, store: Store, t: Term): Term =
-    try {
-      val (storePrime, t1) = eval1(info, store, t)
-      eval(info, storePrime, t1)
-    } catch {
-      case _: NoRuleAppliesException => t
+    eval1(info, store, t) match {
+      case Some((storePrime, tPrime)) => eval(info, storePrime, tPrime)
+      case None                       => t
     }
 
-  def typeOf(ctx: Context, typeStore: TypeStore, t: Term): Type = t match {
-    case TmVar(fi, i, _) => ctx.getTypeFromContext(fi, i)
+  def typeOf(ctx: Context, store: Store, t: Term): Option[Type] = t match {
+    case TmVar(fi, i, _) => Some(ctx.getTypeFromContext(fi, i))
     case TmAbs(_, x, tyT1, t2) =>
       val ctx_ = ctx.addBinding(x, VarBind(tyT1))
-      val tyT2 = typeOf(ctx_, typeStore, t2)
-      TyArr(tyT1, tyT2)
+      for {
+        tyT2 <- typeOf(ctx_, store, t2)
+      } yield TyArr(tyT1, tyT2)
     case TmApp(fi, t1, t2) =>
-      val tyT1 = typeOf(ctx, typeStore, t1)
-      val tyT2 = typeOf(ctx, typeStore, t2)
-      tyT1 match {
-        case TyArr(tyT11, tyT12) if tyT2 == tyT11 => tyT12
-        case TyArr(_, _)                          => throw NoRuleAppliesException(t)
-        case _                                    => throw NoRuleAppliesException(t)
-      }
-    case TmTrue(_)  => TyBool
-    case TmFalse(_) => TyBool
-    case TmIf(_, t1, t2, t3) if typeOf(ctx, typeStore, t1) == TyBool =>
-      if (typeOf(ctx, typeStore, t2) == typeOf(ctx, typeStore, t3))
-        typeOf(ctx, typeStore, t2)
-      else throw NoRuleAppliesException(t)
-    case TmIf(_, _, _, _) => throw NoRuleAppliesException(t)
-    case TmUnit(_)        => TyUnit
-    case TmLocation(_, i) => TyRef(typeStore.getType(i))
-    case TmRef(_, t1)     => TyRef(typeOf(ctx, typeStore, t1))
-    case TmDeRef(_, t1) =>
-      typeOf(ctx, typeStore, t1) match {
-        case TyRef(tyT11) => tyT11
-        case _            => throw NoRuleAppliesException(t)
-      }
-    case TmAssign(_, t1, t2) =>
-      (typeOf(ctx, typeStore, t1), typeOf(ctx, typeStore, t2)) match {
-        case (TyRef(tyT11), tyT11prime) if tyT11 == tyT11prime => TyUnit
-        case _                                                 => throw NoRuleAppliesException(t)
-      }
+      for {
+        tyT1 <- typeOf(ctx, store, t1)
+        tyT2 <- typeOf(ctx, store, t2)
+        tyT12 <- tyT1 match {
+          case TyArr(tyT11, tyT12) if tyT2 == tyT11 => Some(tyT12)
+          case _                                    => None
+        }
+      } yield tyT12
+    case TmTrue(_)  => Some(TyBool)
+    case TmFalse(_) => Some(TyBool)
+    case TmIf(fi, t1, t2, t3) if typeOf(ctx, store, t1).contains(TyBool) =>
+      for {
+        tyT2 <- typeOf(ctx, store, t2)
+        tyT3 <- typeOf(ctx, store, t3)
+        tyT <- if (tyT2 == tyT3) Some(tyT2) else None
+      } yield tyT
+    case TmIf(fi, _, _, _) => None
+    case TmUnit(_)         => Some(TyUnit)
   }
 
   def refine(t: ExternalTerm): Term = {
-    case TmSeq(fi, t1, t2) =>
-      TmApp(fi, TmAbs(fi, "x", TyUnit, refine(t1)), refine(t2))
-    case t1: Term => t1
+    t match {
+      case TmSeq(fi, t1, t2) =>
+        TmApp(fi, TmAbs(fi, "x", TyUnit, refine(t1)), refine(t2))
+      case t1: Term => t1
+    }
   }
 
   def externalEval(info: Info,
@@ -242,8 +215,8 @@ object UnitRef {
   }
 
   def externalTypeOf(ctx: Context,
-                     typeStore: TypeStore,
-                     externalTerm: ExternalTerm): Type = {
-    typeOf(ctx, typeStore, refine(externalTerm))
+                     store: Store,
+                     externalTerm: ExternalTerm): Option[Type] = {
+    typeOf(ctx, store, refine(externalTerm))
   }
 }

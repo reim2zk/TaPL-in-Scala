@@ -57,10 +57,6 @@ object SimpleExt {
 
   final case class NoRuleAppliesException(term: Term) extends RuntimeException
 
-  /*
-  ML 実装では Context 型のインスタンスが関数の引数に含まれているが，
-  Context クラスの振る舞いとすることで省略する．
-   */
   case class Context(l: List[(String, Binding)]) {
     def pickFreshName(s: String): (Context, String) =
       if (isNameBound(s)) pickFreshName(s + "'")
@@ -78,62 +74,6 @@ object SimpleExt {
     }
 
     def isNameBound(x: String): Boolean = l.exists(_._1 == x)
-
-    /*
-    型検査．
-    eval と似たことをしているが，異なる機構で行われる．
-     */
-    def typeOf(t: Term): Type = t match {
-      case TmVar(fi, i, _) => getTypeFromContext(fi, i)
-      case TmAbs(_, x, tyT1, t2) =>
-        val ctx_ = addBinding(x, VarBind(tyT1))
-        val tyT2 = ctx_.typeOf(t2)
-        TyArr(tyT1, tyT2)
-      case TmApp(fi, t1, t2) =>
-        val tyT1 = typeOf(t1)
-        val tyT2 = typeOf(t2)
-        tyT1 match {
-          case TyArr(tyT11, tyT12) if tyT2 == tyT11 => tyT12
-          case TyArr(_, _)                          => error(fi, "parameter type mismatch")
-          case _                                    => error(fi, "arrow type expected")
-        }
-      case TmTrue(_)  => TyBool
-      case TmFalse(_) => TyBool
-      case TmIf(fi, t1, t2, t3) if typeOf(t1) == TyBool =>
-        if (typeOf(t2) == typeOf(t3)) typeOf(t2)
-        else error(fi, "arms of conditional have different types")
-      case TmIf(fi, _, _, _) => error(fi, "guard of conditional not a boolean")
-      case TmUnit(_)         => TyUnit
-      case TmProduct(_, t1, t2) =>
-        val tyT1 = typeOf(t1)
-        val tyT2 = typeOf(t2)
-        TyProduct(tyT1, tyT2)
-      case TmFirst(fi, t1) =>
-        typeOf(t1) match {
-          case TyProduct(ty11, _) => ty11
-          case _                  => error(fi, "")
-        }
-      case TmSecond(fi, t1) =>
-        typeOf(t1) match {
-          case TyProduct(_, ty12) => ty12
-          case _                  => error(fi, "")
-        }
-      case TmInl(_, t1, ty2) => TySum(typeOf(t1), ty2)
-      case TmInr(_, ty1, t2) => TySum(ty1, typeOf(t2))
-      case TmCase(fi, t0, x1, t1, x2, t2) =>
-        typeOf(t0) match {
-          case TySum(ty1, ty2) => {
-            val tyT = addBinding(x1, VarBind(ty1)).typeOf(t1)
-            val tyTPrime = addBinding(x2, VarBind(ty2)).typeOf(t2)
-            if(tyT == tyTPrime) {
-              tyT
-            } else {
-              error(fi, "")
-            }
-          }
-          case _ => error(fi, "")
-        }
-    }
 
     @throws
     private def get(i: Int): (String, Binding) = l(i)
@@ -201,41 +141,118 @@ object SimpleExt {
     case _                                                        => false
   }
 
-  def eval1(info: Info, ctx: Context, t: Term): Term = t match {
+  def eval1(info: Info, ctx: Context, t: Term): Option[Term] = t match {
     case TmApp(_, TmAbs(_, _, _, t12), v2) if isVal(ctx, v2) =>
-      termSubstTop(v2, t12)
-    case TmApp(fi, v1, t2) if isVal(ctx, v1) =>
-      TmApp(fi, v1, eval1(fi, ctx, t2))
-    case TmApp(fi, t1, t2) =>
-      TmApp(fi, eval1(fi, ctx, t1), t2)
-    case TmIf(_, TmTrue(_), t1, _)  => t1
-    case TmIf(_, TmFalse(_), _, t2) => t2
-    case TmIf(fi, t1, t2, t3)       => TmIf(fi, eval1(info, ctx, t1), t2, t3)
+      Some(termSubstTop(v2, t12))
+    case TmApp(fi, v1, t2) if isVal(ctx, v1) => for {
+      t2prime <- eval1(fi, ctx, t2)
+    } yield TmApp(fi, v1, t2prime)
+    case TmApp(fi, t1, t2) => for {
+      t1prime <- eval1(fi, ctx, t1)
+    } yield TmApp(fi, t1prime, t2)
+    case TmIf(_, TmTrue(_), t1, _)  => Some(t1)
+    case TmIf(_, TmFalse(_), _, t2) => Some(t2)
+    case TmIf(fi, t1, t2, t3)       => for {
+      t1prime <- eval1(info, ctx, t1)
+    } yield TmIf(fi, t1prime, t2, t3)
     case TmFirst(_, TmProduct(_, v1, v2)) if isVal(ctx, v1) && isVal(ctx, v2) =>
-      v1
+      Some(v1)
     case TmSecond(_, TmProduct(_, v1, v2))
         if isVal(ctx, v1) && isVal(ctx, v2) =>
-      v2
-    case TmFirst(fi, t1)       => TmFirst(fi, eval1(fi, ctx, t1))
-    case TmSecond(fi, t1)      => TmFirst(fi, eval1(fi, ctx, t1))
-    case TmProduct(fi, t1, t2) => TmProduct(fi, eval1(fi, ctx, t1), t2)
-    case TmProduct(fi, v1, t2) if isVal(ctx, v1) =>
-      TmProduct(fi, v1, eval1(fi, ctx, t2))
-    case TmCase(_, TmInl(_, v0, _), _, t1, _, _) if isVal(ctx, v0) => termSubstTop(v0, t1)
-    case TmCase(_, TmInr(_, _, v0), _, _, _, t2) if isVal(ctx, v0) => termSubstTop(v0, t2)
-    case TmCase(fi, t0, x1, t1, x2, t2) => TmCase(fi, eval1(info, ctx, t0), x1, t1, x2, t2)
-    case TmInl(fi, t1, ty2) => TmInl(fi, eval1(info, ctx, t1), ty2)
-    case TmInr(fi, ty1, t2) => TmInr(fi, ty1, eval1(info, ctx, t2))
-    case _ => throw NoRuleAppliesException(t)
+      Some(v2)
+    case TmFirst(fi, t1)       => for {
+      t1prime <- eval1(fi, ctx, t1)
+    } yield TmFirst(fi, t1prime)
+    case TmSecond(fi, t1)      => for {
+      t1prime <- eval1(fi, ctx, t1)
+    } yield TmFirst(fi, t1prime)
+    case TmProduct(fi, t1, t2) => for {
+      t1prime <- eval1(fi, ctx, t1)
+    } yield TmProduct(fi, t1prime, t2)
+    case TmProduct(fi, v1, t2) if isVal(ctx, v1) => for {
+      t2prime <- eval1(fi, ctx, t2)
+    } yield TmProduct(fi, v1, t2prime)
+    case TmCase(_, TmInl(_, v0, _), _, t1, _, _) if isVal(ctx, v0) => Some(termSubstTop(v0, t1))
+    case TmCase(_, TmInr(_, _, v0), _, _, _, t2) if isVal(ctx, v0) => Some(termSubstTop(v0, t2))
+    case TmCase(fi, t0, x1, t1, x2, t2) => for {
+      t0prime <-eval1(info, ctx, t0)
+    } yield TmCase(fi, t0prime, x1, t1, x2, t2)
+    case TmInl(fi, t1, ty2) => for {
+      t1prime <- eval1(info, ctx, t1)
+    } yield TmInl(fi, t1prime, ty2)
+    case TmInr(fi, ty1, t2) => for {
+      t2prime <- eval1(info, ctx, t2)
+    } yield TmInr(fi, ty1, t2prime)
+    case _ => None
   }
 
   def eval(info: Info, ctx: Context, t: Term): Term =
-    try {
-      val t1 = eval1(info, ctx, t)
-      eval(info, ctx, t1)
-    } catch {
-      case _: NoRuleAppliesException => t
+    eval1(info, ctx, t) match {
+      case Some(tPrime) => eval(info, ctx, tPrime)
+      case None => t
     }
+
+  def typeOf(ctx: Context, t: Term): Option[Type] = t match {
+    case TmVar(fi, i, _) => Some(ctx.getTypeFromContext(fi, i))
+    case TmAbs(_, x, tyT1, t2) =>
+      val ctx_ = ctx.addBinding(x, VarBind(tyT1))
+      for {
+        tyT2 <- typeOf(ctx_, t2)
+      } yield TyArr(tyT1, tyT2)
+    case TmApp(_, t1, t2) =>
+      for {
+        tyT1 <- typeOf(ctx, t1)
+        tyT2 <- typeOf(ctx, t2)
+        res <- tyT1 match {
+          case TyArr(tyT11, tyT12) if tyT2 == tyT11 => Some(tyT12)
+          case TyArr(_, _)                          => None
+          case _                                    => None
+        }
+      } yield res
+    case TmTrue(_)  => Some(TyBool)
+    case TmFalse(_) => Some(TyBool)
+    case TmIf(_, t1, t2, t3) if typeOf(ctx, t1).contains(TyBool) =>
+      if (typeOf(ctx, t2) == typeOf(ctx, t3)) typeOf(ctx, t2)
+      else None
+    case TmIf(_, _, _, _) => None
+    case TmUnit(_)         => Some(TyUnit)
+    case TmProduct(_, t1, t2) =>
+      for {
+        tyT1 <- typeOf(ctx, t1)
+        tyT2 <- typeOf(ctx, t2)
+      } yield TyProduct(tyT1, tyT2)
+    case TmFirst(fi, t1) =>
+      for {
+        tyT1 <- typeOf(ctx, t1)
+        tyT11 <- tyT1 match {
+          case TyProduct(ty11, _) => Some(ty11)
+          case _                  => None
+        }
+      } yield tyT11
+    case TmSecond(_, t1) =>
+      for {
+        tyT1 <- typeOf(ctx, t1)
+        tyT12 <- tyT1 match {
+          case TyProduct(_, ty12) => Some(ty12)
+          case _                  => None
+        }
+      } yield tyT12
+    case TmInl(_, t1, tyT2) => for {
+      tyT1 <- typeOf(ctx, t1)
+    } yield TySum(tyT1, tyT2)
+    case TmInr(_, tyT1, t2) => for {
+      tyT2 <- typeOf(ctx, t2)
+    } yield TySum(tyT1, tyT2)
+    case TmCase(_, t0, x1, t1, x2, t2) =>
+      typeOf(ctx, t0) match {
+        case Some(TySum(ty1, ty2)) => for {
+          tyT <-typeOf(ctx.addBinding(x1, VarBind(ty1)), t1)
+          tyTPrime <- typeOf(ctx.addBinding(x2, VarBind(ty2)), t2)
+          res <- if(tyT == tyTPrime) Some(tyT) else None
+        } yield res
+        case _ => None
+      }
+  }
 
   def refine(t: ExternalTerm): Term = {
     t match {
@@ -248,7 +265,7 @@ object SimpleExt {
     eval(info, ctx, refine(externalTerm))
   }
 
-  def externalTypeOf(ctx: Context, externalTerm: ExternalTerm): Type = {
-    ctx.typeOf(refine(externalTerm))
+  def externalTypeOf(ctx: Context, externalTerm: ExternalTerm): Option[Type] = {
+    typeOf(ctx, refine(externalTerm))
   }
 }
