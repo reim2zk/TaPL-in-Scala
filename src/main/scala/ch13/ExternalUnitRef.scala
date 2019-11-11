@@ -1,8 +1,8 @@
 package ch13
 
 object ExternalUnitRef {
+  import ch13.UnitRef._
   import ch13.{UnitRef => I}
-  import ch13.UnitRef.{Info, Type, Store, Context, ITerm}
 
   trait Term
   final case class TmSeq(info: Info, t1: Term, t2: Term) extends Term
@@ -41,6 +41,6 @@ object ExternalUnitRef {
   def eval(info: Info, store: Store, t: Term): ITerm = {
     I.eval(info, store, refine(t))
   }
-  def typeOf(ctx: Context, store: Store, t: Term): Option[Type] =
+  def typeOf(ctx: Context, store: TypeStore, t: Term): Option[Type] =
     I.typeOf(ctx, store, refine(t))
 }

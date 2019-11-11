@@ -42,7 +42,8 @@ object UnitRef {
       TmLocation(info, map.keys.max)
     def addBinding(i: Int, t: ITerm): Store = Store(map.+((i, t)))
     def substitute(i: Int, t: ITerm): Store = Store(map.-(i).+((i, t)))
-    def getTerm(i: Int): ITerm = map.get(i).get
+    def inDom(l: TmLocation): Boolean = map.contains(l.index)
+    def getTerm(i: Int): Option[ITerm] = map.get(i)
   }
   object Store {
     def apply(): Store = Store(Map.empty)
@@ -50,7 +51,10 @@ object UnitRef {
 
   case class TypeStore(map: Map[Int, Type]) {
     def addBinding(i: Int, ty: Type): TypeStore = TypeStore(map.+((i, ty)))
-    def getType(i: Int): Type = map.get(i).get
+    def getType(i: Int): Option[Type] = map.get(i)
+  }
+  object TypeStore {
+    def apply(): TypeStore = TypeStore(Map.empty)
   }
 
   case class Context(l: List[(String, Binding)]) {
@@ -145,10 +149,27 @@ object UnitRef {
         for {
           (storePrime, t1prime) <- eval1(fi, store, t1)
         } yield (storePrime, TmApp(fi, t1prime, t2))
-      case TmRef(info, t1)            => ???
-      case TmDeRef(info, t2)          => ???
-      case TmAssign(info, t1, t2)     => ???
-      case TmLocation(info, index)    => ???
+      case TmRef(_, v1) if isVal(v1) => {
+        val location = store.unboundedLocation(info)
+        Some(store.addBinding(location.index, v1), location)
+      }
+      case TmRef(fi, t1) => for {
+        (storePrime, t1prime) <- eval1(info, store, t1)
+      } yield (storePrime, TmRef(fi, t1prime))
+      case TmDeRef(_, l: TmLocation) => for {
+        v <- store.getTerm(l.index)
+      } yield (store, v)
+      case TmDeRef(fi, t1) => for {
+        (storePrime, t1Prime) <- eval1(fi, store, t1)
+      } yield (storePrime, t1Prime)
+      case TmAssign(fi, l: TmLocation, v2) if isVal(v2) =>
+        Some((store.substitute(l.index, v2), TmUnit(fi)))
+      case TmAssign(fi, t1, t2) => for {
+        (storePrime, t1Prime) <- eval1(fi, store, t1)
+      } yield (storePrime, TmAssign(fi, t1Prime, t2))
+      case TmAssign(fi, v1, t2) if isVal(v1) => for {
+        (storePrime, t2Prime) <- eval1(fi, store, t2)
+      } yield (storePrime, TmAssign(fi, v1, t2Prime))
       case TmIf(_, TmTrue(_), t1, _)  => Some((store, t1))
       case TmIf(_, TmFalse(_), _, t2) => Some((store, t2))
       case TmIf(fi, t1, t2, t3) =>
@@ -164,7 +185,7 @@ object UnitRef {
       case None                       => t
     }
 
-  def typeOf(ctx: Context, store: Store, t: ITerm): Option[Type] = t match {
+  def typeOf(ctx: Context, store: TypeStore, t: ITerm): Option[Type] = t match {
     case TmVar(fi, i, _) => Some(ctx.getTypeFromContext(fi, i))
     case TmAbs(_, x, tyT1, t2) =>
       val ctx_ = ctx.addBinding(x, VarBind(tyT1))
@@ -180,10 +201,24 @@ object UnitRef {
           case _                                    => None
         }
       } yield tyT12
-    case TmRef(info, t1)         => ???
-    case TmDeRef(info, t2)       => ???
-    case TmAssign(info, t1, t2)  => ???
-    case TmLocation(info, index) => ???
+    case l: TmLocation => for {
+      tyT1 <- store.getType(l.index)
+    } yield TyRef(tyT1)
+    case TmRef(_, t1) => for {
+      tyT1 <- typeOf(ctx, store, t1)
+    } yield tyT1
+    case TmDeRef(_, t1) => for {
+      tyT1 <- typeOf(ctx, store, t1)
+      tyT11 <- tyT1 match {
+        case TyRef(tyT1) => Some(tyT1)
+        case _           => None
+      }
+    } yield tyT11
+    case TmAssign(_, t1, t2)  => for {
+      tyT1 <- typeOf(ctx, store, t1)
+      tyT11 <- typeOf(ctx, store, t2)
+      tyUnit <- if(tyT1 == TyRef(tyT11)) Some(TyUnit) else None
+    } yield tyUnit
     case TmTrue(_)               => Some(TyBool)
     case TmFalse(_)              => Some(TyBool)
     case TmIf(_, t1, t2, t3) if typeOf(ctx, store, t1).contains(TyBool) =>

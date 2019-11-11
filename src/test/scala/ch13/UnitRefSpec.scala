@@ -4,10 +4,10 @@ import org.scalatest.{DiagrammedAssertions, FlatSpec}
 
 class UnitRefSpec extends FlatSpec with DiagrammedAssertions {
   import ch13.ExternalUnitRef._
-  import ch13.UnitRef.{Info, Type, Store, Context, equalTerm, ITerm}
+  import ch13.UnitRef.{Info, Type, Store, Context, equalTerm, ITerm, TypeStore}
   def eq(t1: Term, t2: Term): Boolean = equalTerm(ev(t1), ev(t2))
   def ev(t: Term): ITerm = eval(Info(), Store(), t)
-  def ty(t: Term): Type = typeOf(Context(), Store(), t).get
+  def ty(t: Term): Type = typeOf(Context(), TypeStore(), t).get
 
   "UnitRef" should "support evaluating boolean" in {
     val info = Info()
