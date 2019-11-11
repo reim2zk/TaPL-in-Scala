@@ -18,4 +18,12 @@ class UnitRefSpec extends FlatSpec with DiagrammedAssertions {
       assert(eq(t, TmIf(info, TmFalse(info), unit, t)))
     }
   }
+
+  "UnitRef" should "return assign and reference" in {
+    val info = Info()
+    val ts = Seq(TmTrue(info), TmFalse(info))
+    ts.foreach { t =>
+      eq(t, TmDeRef(info, TmRef(info, t)))
+    }
+  }
 }
