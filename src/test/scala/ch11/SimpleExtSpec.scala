@@ -93,6 +93,23 @@ class SimpleExtSpec extends FlatSpec with DiagrammedAssertions {
     }
   }
 
+//  it should "support evaluating sum" in {
+//    val info = Info()
+//
+//    val boolNot =
+//      TmAbs(
+//        info,
+//        "x",
+//        TyBool,
+//        TmIf(info, TmVar(info, 0, 0), TmFalse(info), TmTrue(info))
+//      )
+//    val t1 = TmTrue(info)
+//    val t2 = TmFalse(info)
+//    val sl = TmInl(info, t1, TyBool)
+//    val sr = TmInr(info, TyBool, t2)
+//    val t = TmCase(info, sl, "x", t2, "y", t1)
+//  }
+
   it should "support typing" in {
     val ts = Seq(TmTrue(Info()), TmFalse(Info()), TmUnit(Info()))
     assert(TyBool === ty(TmTrue(Info())))
